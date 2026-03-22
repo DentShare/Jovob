@@ -1,0 +1,222 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  STARTER
+  BUSINESS
+}
+
+enum Role {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PREPARING
+  DELIVERED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  telegramId    BigInt?   @unique
+  phone         String?   @unique
+  name          String
+  email         String?
+  language      String    @default("ru")
+  plan          Plan      @default(FREE)
+  planExpiresAt DateTime?
+  bots          Bot[]
+  createdAt     DateTime  @default(now())
+}
+
+model Bot {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id])
+  name             String
+  description      String          @db.Text
+  businessType     String
+  botLanguages     String[]
+  personality      String          @default("friendly")
+  welcomeMessage   String          @db.Text
+  workingHours     Json?
+  address          String?
+  managerContact   String?
+  telegramToken    String?         @unique
+  telegramBotName  String?
+  instagramPageId  String?
+  whatsappPhoneId  String?
+  isActive         Boolean         @default(false)
+  scenario         Json?
+  capabilities     String[]
+  products         Product[]
+  services         Service[]
+  knowledgeDocs    KnowledgeDoc[]
+  faqItems         FAQItem[]
+  conversations    Conversation[]
+  orders           Order[]
+  bookings         Booking[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  botId       String
+  bot         Bot      @relation(fields: [botId], references: [id])
+  name        String
+  nameUz      String?
+  description String?  @db.Text
+  price       Decimal
+  currency    String   @default("UZS")
+  category    String?
+  imageUrl    String?
+  inStock     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([botId])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  botId       String
+  bot         Bot      @relation(fields: [botId], references: [id])
+  name        String
+  nameUz      String?
+  description String?  @db.Text
+  price       Decimal
+  currency    String   @default("UZS")
+  durationMin Int?
+  createdAt   DateTime @default(now())
+
+  @@index([botId])
+}
+
+model FAQItem {
+  id         String   @id @default(cuid())
+  botId      String
+  bot        Bot      @relation(fields: [botId], references: [id])
+  question   String
+  questionUz String?
+  answer     String   @db.Text
+  answerUz   String?  @db.Text
+  isAutoGen  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([botId])
+}
+
+model KnowledgeDoc {
+  id        String           @id @default(cuid())
+  botId     String
+  bot       Bot              @relation(fields: [botId], references: [id])
+  title     String
+  source    String
+  content   String           @db.Text
+  chunks    KnowledgeChunk[]
+  createdAt DateTime         @default(now())
+
+  @@index([botId])
+}
+
+model KnowledgeChunk {
+  id         String       @id @default(cuid())
+  docId      String
+  doc        KnowledgeDoc @relation(fields: [docId], references: [id])
+  content    String       @db.Text
+  embedding  Float[]
+  tokenCount Int
+}
+
+model Conversation {
+  id             String    @id @default(cuid())
+  botId          String
+  bot            Bot       @relation(fields: [botId], references: [id])
+  platform       String
+  platformChatId String
+  customerName   String?
+  customerPhone  String?
+  language       String?
+  state          Json      @default("{}")
+  messages       Message[]
+  orders         Order[]
+  isResolved     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([botId, platform])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  role           Role
+  content        String       @db.Text
+  platform       String
+  confidence     Float?
+  handedOff      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model Order {
+  id              String       @id @default(cuid())
+  botId           String
+  bot             Bot          @relation(fields: [botId], references: [id])
+  conversationId  String?
+  conversation    Conversation? @relation(fields: [conversationId], references: [id])
+  items           Json
+  total           Decimal
+  currency        String       @default("UZS")
+  status          OrderStatus  @default(NEW)
+  customerName    String?
+  customerPhone   String
+  deliveryAddress String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  @@index([botId])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  botId         String
+  bot           Bot           @relation(fields: [botId], references: [id])
+  serviceId     String?
+  customerName  String
+  customerPhone String
+  dateTime      DateTime
+  status        BookingStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@index([botId])
+}
