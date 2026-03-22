@@ -11,6 +11,7 @@ const footerLinks = {
       { label: "Тарифы", href: "#pricing" },
       { label: "Примеры ботов", href: "#demo" },
       { label: "Для кого", href: "#niches" },
+      { label: "Демо дашборд", href: "/dashboard", highlight: true },
     ],
   },
   support: {
@@ -43,34 +44,60 @@ export default function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="max-w-5xl mx-auto bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-10 sm:p-14 text-center shadow-2xl shadow-blue-500/20"
+          className="max-w-5xl mx-auto relative overflow-hidden rounded-3xl shadow-2xl shadow-blue-500/20"
         >
-          <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-            Готовы создать своего AI-бота?
-          </h3>
-          <p className="text-blue-100 mb-8 text-lg max-w-md mx-auto">
-            Присоединяйтесь к 1,247+ бизнесам Узбекистана, которые уже
-            используют BotUz
-          </p>
-          <Link
-            href="/create/language"
-            className="inline-flex items-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-          >
-            Создать бота бесплатно
-            <svg
-              className="ml-2 w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M13 7l5 5m0 0l-5 5m5-5H6"
-              />
-            </svg>
-          </Link>
+          {/* Animated gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_100%] animate-[shimmer_6s_ease-in-out_infinite]" />
+
+          {/* Mesh overlay */}
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 50%, white 1px, transparent 1px)`,
+            backgroundSize: '60px 60px',
+          }} />
+
+          {/* Floating shapes */}
+          <div className="absolute top-4 right-8 w-20 h-20 border border-white/10 rounded-full" />
+          <div className="absolute bottom-4 left-12 w-14 h-14 border border-white/10 rounded-lg rotate-45" />
+
+          <div className="relative p-10 sm:p-14 text-center">
+            <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+              Готовы создать своего AI-бота?
+            </h3>
+            <p className="text-blue-100 mb-8 text-lg max-w-md mx-auto">
+              Присоединяйтесь к 1,247+ бизнесам Узбекистана, которые уже
+              используют BotUz
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/create"
+                className="inline-flex items-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Создать бота бесплатно
+                <svg
+                  className="ml-2 w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-2xl border border-white/20 hover:bg-white/20 transition-all duration-300"
+              >
+                <svg className="mr-2 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+                Демо дашборд
+              </Link>
+            </div>
+          </div>
         </motion.div>
       </div>
 
@@ -139,8 +166,17 @@ export default function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-gray-400 hover:text-white transition-colors duration-200"
+                      className={`text-sm transition-colors duration-200 ${
+                        'highlight' in link && link.highlight
+                          ? "text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1.5"
+                          : "text-gray-400 hover:text-white"
+                      }`}
                     >
+                      {'highlight' in link && link.highlight && (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                        </svg>
+                      )}
                       {link.label}
                     </Link>
                   </li>

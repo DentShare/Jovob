@@ -1,101 +1,17 @@
 "use client";
 
 import { useState } from "react";
-
-interface Dialog {
-  id: string;
-  customerName: string;
-  lastMessage: string;
-  time: string;
-  platform: "telegram" | "instagram" | "whatsapp";
-  status: "ai_answered" | "operator_needed";
-  unread: boolean;
-  messages: { role: "customer" | "bot" | "operator"; text: string; time: string }[];
-}
-
-const demoDialogs: Dialog[] = [
-  {
-    id: "1",
-    customerName: "Азиз Каримов",
-    lastMessage: "Спасибо, заказ получил! Все отлично.",
-    time: "2 мин назад",
-    platform: "telegram",
-    status: "ai_answered",
-    unread: false,
-    messages: [
-      { role: "customer", text: "Здравствуйте! Какие цветы есть в наличии?", time: "10:30" },
-      { role: "bot", text: "Здравствуйте! У нас большой выбор: розы, тюльпаны, хризантемы, лилии. Что вас интересует?", time: "10:30" },
-      { role: "customer", text: "Красные розы, 15 штук. Сколько будет?", time: "10:31" },
-      { role: "bot", text: "15 красных роз — 225 000 сум. Оформить заказ?", time: "10:31" },
-      { role: "customer", text: "Да, оформляйте!", time: "10:32" },
-      { role: "bot", text: "Заказ #1025 создан! Доставка в течение 2 часов. Спасибо!", time: "10:32" },
-      { role: "customer", text: "Спасибо, заказ получил! Все отлично.", time: "12:45" },
-    ],
-  },
-  {
-    id: "2",
-    customerName: "Нилуфар Хасанова",
-    lastMessage: "А можно заказать на завтра к 10 утра?",
-    time: "15 мин назад",
-    platform: "instagram",
-    status: "operator_needed",
-    unread: true,
-    messages: [
-      { role: "customer", text: "Добрый день! Хочу заказать букет на свадьбу", time: "11:00" },
-      { role: "bot", text: "Добрый день! С радостью помогу. Какой бюджет и предпочтения по цветам?", time: "11:00" },
-      { role: "customer", text: "Бюджет 500 000, белые и розовые", time: "11:01" },
-      { role: "bot", text: "Отличный выбор! Могу предложить свадебный букет из белых роз и розовых пионов. Нужна помощь оператора для уточнения деталей.", time: "11:01" },
-      { role: "customer", text: "А можно заказать на завтра к 10 утра?", time: "11:05" },
-    ],
-  },
-  {
-    id: "3",
-    customerName: "Фарход Ахмедов",
-    lastMessage: "Доставка по Ташкенту бесплатная?",
-    time: "32 мин назад",
-    platform: "telegram",
-    status: "ai_answered",
-    unread: false,
-    messages: [
-      { role: "customer", text: "Доставка по Ташкенту бесплатная?", time: "11:20" },
-      { role: "bot", text: "Да, доставка по Ташкенту бесплатная при заказе от 100 000 сум. При заказе менее — доставка 15 000 сум.", time: "11:20" },
-    ],
-  },
-  {
-    id: "4",
-    customerName: "Дилноза Рахимова",
-    lastMessage: "Как оплатить через Click?",
-    time: "1 час назад",
-    platform: "whatsapp",
-    status: "ai_answered",
-    unread: false,
-    messages: [
-      { role: "customer", text: "Как оплатить через Click?", time: "10:00" },
-      { role: "bot", text: "После оформления заказа вы получите ссылку на оплату через Click. Нажмите на неё и следуйте инструкциям в приложении Click.", time: "10:00" },
-    ],
-  },
-  {
-    id: "5",
-    customerName: "Бахром Усманов",
-    lastMessage: "Мне нужен корпоративный заказ на 50 букетов",
-    time: "2 часа назад",
-    platform: "telegram",
-    status: "operator_needed",
-    unread: true,
-    messages: [
-      { role: "customer", text: "Мне нужен корпоративный заказ на 50 букетов", time: "09:00" },
-      { role: "bot", text: "Для корпоративных заказов свяжу вас с менеджером. Пожалуйста, подождите.", time: "09:00" },
-    ],
-  },
-];
+import { useDemo } from "./DemoContext";
+import type { DemoDialog } from "./DemoContext";
 
 const platformIcons = {
-  telegram: "✈️",
-  instagram: "📷",
-  whatsapp: "📱",
+  telegram: "\u2708\uFE0F",
+  instagram: "\uD83D\uDCF7",
+  whatsapp: "\uD83D\uDCF1",
 };
 
 export default function RecentDialogs() {
+  const { currentBot } = useDemo();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -106,11 +22,11 @@ export default function RecentDialogs() {
           href="/dashboard/dialogs"
           className="text-sm font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
         >
-          Все диалоги →
+          Все диалоги &rarr;
         </a>
       </div>
       <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        {demoDialogs.map((dialog) => {
+        {currentBot.dialogs.map((dialog: DemoDialog) => {
           const isExpanded = expandedId === dialog.id;
           return (
             <div key={dialog.id} className="border-b border-gray-50 last:border-b-0">
@@ -155,7 +71,7 @@ export default function RecentDialogs() {
                         : "bg-red-50 text-red-700"
                     }`}
                   >
-                    {dialog.status === "ai_answered" ? "✅ AI" : "❌ Оператор"}
+                    {dialog.status === "ai_answered" ? "\u2705 AI" : "\u274C \u041E\u043F\u0435\u0440\u0430\u0442\u043E\u0440"}
                   </span>
                 </div>
 
@@ -200,7 +116,7 @@ export default function RecentDialogs() {
                                 : "text-white/70"
                             }`}
                           >
-                            {msg.role === "bot" ? "🤖 " : msg.role === "operator" ? "👤 " : ""}
+                            {msg.role === "bot" ? "\uD83E\uDD16 " : msg.role === "operator" ? "\uD83D\uDC64 " : ""}
                             {msg.time}
                           </p>
                         </div>

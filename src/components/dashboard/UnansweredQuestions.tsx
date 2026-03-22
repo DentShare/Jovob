@@ -1,45 +1,21 @@
 "use client";
 
-import { useState } from "react";
-
-interface UnansweredQuestion {
-  id: string;
-  question: string;
-  askedCount: number;
-  lastAsked: string;
-}
-
-const demoQuestions: UnansweredQuestion[] = [
-  {
-    id: "1",
-    question: "Есть ли у вас доставка в Самарканд?",
-    askedCount: 7,
-    lastAsked: "Сегодня",
-  },
-  {
-    id: "2",
-    question: "Можно ли заказать торт с индивидуальным дизайном?",
-    askedCount: 4,
-    lastAsked: "Сегодня",
-  },
-  {
-    id: "3",
-    question: "Работаете ли вы в праздничные дни?",
-    askedCount: 3,
-    lastAsked: "Вчера",
-  },
-  {
-    id: "4",
-    question: "Какой минимальный заказ для бесплатной доставки?",
-    askedCount: 2,
-    lastAsked: "Вчера",
-  },
-];
+import { useState, useEffect } from "react";
+import { useDemo } from "./DemoContext";
+import type { DemoUnanswered } from "./DemoContext";
 
 export default function UnansweredQuestions() {
-  const [questions, setQuestions] = useState(demoQuestions);
+  const { currentBot } = useDemo();
+  const [questions, setQuestions] = useState<DemoUnanswered[]>(currentBot.unanswered);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
+
+  // Reset questions when bot switches
+  useEffect(() => {
+    setQuestions(currentBot.unanswered);
+    setEditingId(null);
+    setAnswerText("");
+  }, [currentBot]);
 
   const handleAddAnswer = (id: string) => {
     if (!answerText.trim()) return;
@@ -97,7 +73,7 @@ export default function UnansweredQuestions() {
                 <p className="text-sm font-medium text-gray-900">{q.question}</p>
                 <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                   <span>Спрашивали {q.askedCount} раз</span>
-                  <span>·</span>
+                  <span>&middot;</span>
                   <span>{q.lastAsked}</span>
                 </div>
               </div>
