@@ -36,6 +36,21 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  FAILED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -56,6 +71,9 @@ model User {
   accounts        Account[]
   sessions        AuthSession[]
   wizardSession   WizardSession?
+  subscriptions   Subscription[]
+  payments        Payment[]
+  notifications   Notification[]
   createdAt       DateTime  @default(now())
 }
 
@@ -140,6 +158,7 @@ model Bot {
   conversations    Conversation[]
   orders           Order[]
   bookings         Booking[]
+  broadcasts       Broadcast[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -298,4 +317,70 @@ model AILog {
   createdAt       DateTime @default(now())
 
   @@index([botId, createdAt])
+}
+
+// ─── Payments & Subscriptions ───────────────────────────────────────────────
+
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  plan          Plan
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean   @default(true)
+  autoRenew     Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  provider        String
+  externalId      String?
+  amount          Decimal
+  currency        String        @default("UZS")
+  status          PaymentStatus @default(PENDING)
+  description     String?
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String   @db.Text
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ─── Broadcasts ─────────────────────────────────────────────────────────────
+
+model Broadcast {
+  id          String          @id @default(cuid())
+  botId       String
+  bot         Bot             @relation(fields: [botId], references: [id])
+  message     String          @db.Text
+  imageUrl    String?
+  filters     Json?
+  status      BroadcastStatus @default(DRAFT)
+  totalSent   Int             @default(0)
+  totalFailed Int             @default(0)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([botId])
 }

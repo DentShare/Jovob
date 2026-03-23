@@ -105,7 +105,7 @@ export default function DialogsPage() {
 
   // Map real data to display format
   const conversations: DisplayConversation[] = isDemo
-    ? (demoBot.dialogs?.length ? demoBot.dialogs.map((d) => ({
+    ? (demoBot.dialogs?.length ? demoBot.dialogs.map((d: any) => ({
         id: d.id,
         customerName: d.customerName,
         phone: "",
@@ -114,7 +114,7 @@ export default function DialogsPage() {
         lastMessage: d.lastMessage,
         time: d.time,
         unread: d.unread || false,
-        messages: d.messages?.map((m) => ({
+        messages: d.messages?.map((m: any) => ({
           role: m.role === "user" ? "customer" as const : "bot" as const,
           text: m.text,
           time: m.time,

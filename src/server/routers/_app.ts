@@ -8,6 +8,8 @@ import { bookingRouter } from './booking'
 import { conversationRouter } from './conversation'
 import { wizardRouter } from './wizard'
 import { userRouter } from './user'
+import { notificationRouter } from './notification'
+import { broadcastRouter } from './broadcast'
 
 export const appRouter = router({
   bot: botRouter,
@@ -19,6 +21,8 @@ export const appRouter = router({
   conversation: conversationRouter,
   wizard: wizardRouter,
   user: userRouter,
+  notification: notificationRouter,
+  broadcast: broadcastRouter,
 })
 
 export type AppRouter = typeof appRouter
