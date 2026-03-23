@@ -232,7 +232,7 @@ export default function DashboardLayout({
                 )}
                 <div className="border-t border-gray-100 mt-1 pt-1">
                   <Link
-                    href="/create/language"
+                    href="/create"
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#3B82F6] hover:bg-gray-50"
                   >
                     <span>+</span> Создать своего бота
