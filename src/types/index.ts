@@ -75,6 +75,12 @@ export interface BotConfig {
   capabilities: string[]
   products: Product[]
   faqItems: FAQItem[]
+  // AI Engine settings
+  aiModel: string
+  aiTemperature: number
+  aiMaxTokens: number
+  aiMaxContext: number
+  confidenceThreshold: number
 }
 
 // ─── AI Engine ──────────────────────────────────────────────────────────────

@@ -5,20 +5,25 @@ import type { NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request })
   const isAuth = !!token
-  const isAuthPage = request.nextUrl.pathname === '/login'
-  const isProtected = request.nextUrl.pathname.startsWith('/create')
+  const { pathname } = request.nextUrl
+  const isAuthPage = pathname === '/login'
+  const isProtected = pathname.startsWith('/create') || pathname.startsWith('/dashboard')
 
+  // Redirect authenticated users away from login page
   if (isAuthPage && isAuth) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // Redirect unauthenticated users to login
   if (isProtected && !isAuth) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/login', '/create/:path*'],
+  matcher: ['/login', '/create/:path*', '/dashboard/:path*'],
 }

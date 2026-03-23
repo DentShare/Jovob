@@ -20,10 +20,12 @@ function getOpenAI() {
   })
 }
 
-const MODEL = 'gpt-4o-mini'
-const MAX_CONTEXT_MESSAGES = 10
-const CONFIDENCE_THRESHOLD = 0.6
-const MAX_TOKENS = 1024
+// Defaults (overridden per-bot from DB)
+const DEFAULT_MODEL = 'gpt-4o-mini'
+const DEFAULT_MAX_CONTEXT = 10
+const DEFAULT_CONFIDENCE_THRESHOLD = 0.6
+const DEFAULT_MAX_TOKENS = 1024
+const DEFAULT_TEMPERATURE = 0.7
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
@@ -62,8 +64,8 @@ export async function processMessage(
       customerLanguage ?? null
     )
 
-    // 3. Fetch conversation context
-    const context = await getConversationContext(conversation.id)
+    // 3. Fetch conversation context (using per-bot max context)
+    const context = await getConversationContext(conversation.id, bot.aiMaxContext)
 
     // 4. Search knowledge base for relevant chunks
     const knowledgeChunks = await searchKnowledge(botId, userMessage)
@@ -79,12 +81,12 @@ export async function processMessage(
       userMessage
     )
 
-    // 7. Call OpenAI
+    // 7. Call OpenAI (using per-bot settings)
     const completion = await getOpenAI().chat.completions.create({
-      model: MODEL,
+      model: bot.aiModel,
       messages,
-      max_tokens: MAX_TOKENS,
-      temperature: 0.7,
+      max_tokens: bot.aiMaxTokens,
+      temperature: bot.aiTemperature,
     })
 
     const responseText =
@@ -95,7 +97,7 @@ export async function processMessage(
     const intent = detectIntent(userMessage, responseText)
     const extractedData = extractOrderData(responseText, userMessage, bot.products)
     const suggestHandoff =
-      confidence < CONFIDENCE_THRESHOLD ||
+      confidence < bot.confidenceThreshold ||
       responseText.includes('Сейчас подключу менеджера')
     const language = detectLanguage(userMessage)
 
@@ -163,6 +165,11 @@ async function loadBotConfig(botId: string): Promise<BotConfig | null> {
     capabilities: bot.capabilities,
     products: bot.products,
     faqItems: bot.faqItems,
+    aiModel: bot.aiModel ?? DEFAULT_MODEL,
+    aiTemperature: bot.aiTemperature ?? DEFAULT_TEMPERATURE,
+    aiMaxTokens: bot.aiMaxTokens ?? DEFAULT_MAX_TOKENS,
+    aiMaxContext: bot.aiMaxContext ?? DEFAULT_MAX_CONTEXT,
+    confidenceThreshold: bot.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD,
   }
 }
 
@@ -207,14 +214,15 @@ async function getOrCreateConversation(
 }
 
 async function getConversationContext(
-  conversationId: string
+  conversationId: string,
+  maxMessages: number = DEFAULT_MAX_CONTEXT
 ): Promise<ConversationContext> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     include: {
       messages: {
         orderBy: { createdAt: 'desc' },
-        take: MAX_CONTEXT_MESSAGES,
+        take: maxMessages,
         select: {
           role: true,
           content: true,

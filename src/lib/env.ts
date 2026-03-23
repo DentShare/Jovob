@@ -2,13 +2,13 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  NEXTAUTH_SECRET: z.string().min(1, 'NEXTAUTH_SECRET is required'),
+  NEXTAUTH_SECRET: z.string().min(10, 'NEXTAUTH_SECRET must be at least 10 chars'),
   NEXTAUTH_URL: z.string().url().optional(),
-  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for AI features').optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_URL: z.string().url().optional(),
-  REDIS_URL: z.string().optional(),
-  NEXT_PUBLIC_APP_URL: z.string().optional(),
+  REDIS_URL: z.string().url().optional(),
+  NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
   NEXT_PUBLIC_BOT_USERNAME: z.string().optional(),
 })
 

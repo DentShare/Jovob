@@ -4,13 +4,13 @@ import { createContext } from '@/server/trpc'
 import { rateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
-const handler = (req: Request) => {
+const handler = async (req: Request) => {
   // Rate limiting by IP
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
     || 'unknown'
 
-  if (!rateLimit(ip)) {
+  if (!(await rateLimit(ip))) {
     logger.warn('Rate limit exceeded', { ip, path: req.url })
     return new Response(JSON.stringify({ error: 'Too many requests' }), {
       status: 429,

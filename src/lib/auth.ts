@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import { compare, hash } from 'bcryptjs'
+import { formatPhoneUz } from './auth-utils'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -12,38 +13,78 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        login: { label: 'Login', type: 'text' },
         password: { label: 'Password', type: 'password' },
         name: { label: 'Name', type: 'text' },
         action: { label: 'Action', type: 'text' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        if (!credentials?.login || !credentials?.password) return null
+
+        const login = credentials.login.trim()
+        const isPhone = /^[\d\s+()-]+$/.test(login) && login.replace(/\D/g, '').length >= 9
+        const isEmail = login.includes('@')
 
         if (credentials.action === 'register') {
-          const exists = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          })
-          if (exists) throw new Error('User already exists')
-          const hashedPassword = await hash(credentials.password, 12)
-          const user = await prisma.user.create({
-            data: {
-              email: credentials.email,
-              name: credentials.name || credentials.email.split('@')[0],
-              hashedPassword,
-            },
-          })
-          return { id: user.id, email: user.email, name: user.name }
+          // Registration
+          if (!credentials.name?.trim()) throw new Error('Name is required')
+
+          if (isPhone) {
+            const phone = formatPhoneUz(login)
+            const exists = await prisma.user.findUnique({ where: { phone } })
+            if (exists) throw new Error('Этот номер уже зарегистрирован')
+
+            const hashedPassword = await hash(credentials.password, 12)
+            const user = await prisma.user.create({
+              data: {
+                phone,
+                name: credentials.name.trim(),
+                hashedPassword,
+                lastLoginAt: new Date(),
+              },
+            })
+            return { id: user.id, name: user.name, email: user.phone }
+          }
+
+          if (isEmail) {
+            const exists = await prisma.user.findUnique({ where: { email: login.toLowerCase() } })
+            if (exists) throw new Error('Этот email уже зарегистрирован')
+
+            const hashedPassword = await hash(credentials.password, 12)
+            const user = await prisma.user.create({
+              data: {
+                email: login.toLowerCase(),
+                name: credentials.name.trim(),
+                hashedPassword,
+                lastLoginAt: new Date(),
+              },
+            })
+            return { id: user.id, name: user.name, email: user.email }
+          }
+
+          throw new Error('Введите телефон или email')
         }
 
         // Login
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+        let user = null
+        if (isPhone) {
+          const phone = formatPhoneUz(login)
+          user = await prisma.user.findUnique({ where: { phone } })
+        } else if (isEmail) {
+          user = await prisma.user.findUnique({ where: { email: login.toLowerCase() } })
+        }
+
         if (!user?.hashedPassword) return null
         const valid = await compare(credentials.password, user.hashedPassword)
         if (!valid) return null
-        return { id: user.id, email: user.email, name: user.name }
+
+        // Update lastLoginAt
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        })
+
+        return { id: user.id, name: user.name, email: user.email || user.phone }
       },
     }),
   ],

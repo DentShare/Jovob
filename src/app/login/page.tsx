@@ -5,14 +5,46 @@ import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+type Tab = 'login' | 'register'
+type LoginMethod = 'phone' | 'email'
+
+function formatPhoneDisplay(value: string): string {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length <= 2) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`
+  if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`
+  return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`
+}
+
 export default function LoginPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<'login' | 'register'>('login')
+  const [tab, setTab] = useState<Tab>('login')
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('phone')
+  const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const loginValue = loginMethod === 'phone' ? `+998${phone.replace(/\D/g, '')}` : email
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 9)
+    setPhone(formatPhoneDisplay(raw))
+  }
+
+  const isFormValid = () => {
+    if (loginMethod === 'phone') {
+      const digits = phone.replace(/\D/g, '')
+      if (digits.length !== 9) return false
+    } else {
+      if (!email.includes('@')) return false
+    }
+    if (!password || password.length < 6) return false
+    if (tab === 'register' && !name.trim()) return false
+    return true
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,7 +53,7 @@ export default function LoginPage() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        login: loginValue,
         password,
         name: tab === 'register' ? name : undefined,
         action: tab,
@@ -29,10 +61,12 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        if (result.error === 'User already exists') {
-          setError('Пользователь с таким email уже существует')
+        if (result.error.includes('уже зарегистрирован') || result.error === 'User already exists') {
+          setError(loginMethod === 'phone'
+            ? 'Этот номер уже зарегистрирован'
+            : 'Этот email уже зарегистрирован')
         } else if (result.error === 'CredentialsSignin') {
-          setError('Неверный email или пароль')
+          setError('Неверный логин или пароль')
         } else {
           setError(result.error)
         }
@@ -56,18 +90,8 @@ export default function LoginPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-6"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             На главную
           </Link>
@@ -83,38 +107,20 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-slate-100">
-            <button
-              onClick={() => {
-                setTab('login')
-                setError('')
-              }}
-              className={`flex-1 py-3.5 text-sm font-medium transition-colors relative ${
-                tab === 'login'
-                  ? 'text-blue-600'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Вход
-              {tab === 'login' && (
-                <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setTab('register')
-                setError('')
-              }}
-              className={`flex-1 py-3.5 text-sm font-medium transition-colors relative ${
-                tab === 'register'
-                  ? 'text-blue-600'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Регистрация
-              {tab === 'register' && (
-                <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
-              )}
-            </button>
+            {(['login', 'register'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setError('') }}
+                className={`flex-1 py-3.5 text-sm font-medium transition-colors relative ${
+                  tab === t ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {t === 'login' ? 'Вход' : 'Регистрация'}
+                {tab === t && (
+                  <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
+                )}
+              </button>
+            ))}
           </div>
 
           {/* Form */}
@@ -129,23 +135,54 @@ export default function LoginPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ваше имя"
+                  required
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
                 />
               </div>
             )}
 
+            {/* Login method toggle */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-700">
+                  {loginMethod === 'phone' ? 'Телефон' : 'Email'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod(loginMethod === 'phone' ? 'email' : 'phone')
+                    setError('')
+                  }}
+                  className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  {loginMethod === 'phone' ? 'Войти по email' : 'Войти по телефону'}
+                </button>
+              </div>
+
+              {loginMethod === 'phone' ? (
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 py-2.5 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-sm text-slate-500 font-medium">
+                    +998
+                  </span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder="90 123 45 67"
+                    required
+                    className="w-full px-4 py-2.5 rounded-r-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                  />
+                </div>
+              ) : (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                />
+              )}
             </div>
 
             <div>
@@ -156,11 +193,9 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  tab === 'register' ? 'Минимум 6 символов' : 'Ваш пароль'
-                }
+                placeholder={tab === 'register' ? 'Минимум 6 символов' : 'Ваш пароль'}
                 required
-                minLength={tab === 'register' ? 6 : undefined}
+                minLength={6}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
               />
             </div>
@@ -173,37 +208,18 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isFormValid()}
               className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium text-sm hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   {tab === 'login' ? 'Входим...' : 'Создаём аккаунт...'}
                 </span>
-              ) : tab === 'login' ? (
-                'Войти'
-              ) : (
-                'Создать аккаунт'
-              )}
+              ) : tab === 'login' ? 'Войти' : 'Создать аккаунт'}
             </button>
 
             {/* Divider */}
@@ -216,7 +232,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Telegram button (placeholder) */}
+            {/* Telegram button */}
             <button
               type="button"
               disabled

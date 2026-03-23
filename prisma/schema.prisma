@@ -50,6 +50,8 @@ model User {
   language        String    @default("ru")
   plan            Plan      @default(FREE)
   planExpiresAt   DateTime?
+  isVerified      Boolean   @default(false)
+  lastLoginAt     DateTime?
   bots            Bot[]
   accounts        Account[]
   sessions        AuthSession[]
@@ -125,6 +127,12 @@ model Bot {
   isActive         Boolean         @default(false)
   scenario         Json?
   capabilities     String[]
+  // AI Engine settings (per-bot)
+  aiModel          String          @default("gpt-4o-mini")
+  aiTemperature    Float           @default(0.7)
+  aiMaxTokens      Int             @default(1024)
+  aiMaxContext      Int             @default(10)
+  confidenceThreshold Float        @default(0.6)
   products         Product[]
   services         Service[]
   knowledgeDocs    KnowledgeDoc[]
