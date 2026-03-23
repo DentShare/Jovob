@@ -170,9 +170,9 @@ export default function Step10Review() {
     if (result) {
       setLaunched(true);
       fireConfetti();
-      // Redirect to dashboard after 2 seconds
+      // Redirect to onboarding after 2 seconds
       setTimeout(() => {
-        window.location.href = "/dashboard";
+        window.location.href = `/dashboard/onboarding?botId=${result.id}`;
       }, 2000);
     } else {
       // completeError will be set by context, but we also capture locally

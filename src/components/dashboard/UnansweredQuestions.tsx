@@ -39,8 +39,22 @@ export default function UnansweredQuestions() {
     setAnswerText("");
   }, [source]);
 
+  const createFaqMutation = trpc.faq.create.useMutation({
+    onSuccess: () => {
+      unansweredQuery.refetch();
+    },
+  });
+
   const handleAddAnswer = (id: string) => {
     if (!answerText.trim()) return;
+    const question = questions.find((q) => q.id === id);
+    if (question && !isDemo && currentBotId) {
+      createFaqMutation.mutate({
+        botId: currentBotId,
+        question: question.question,
+        answer: answerText,
+      });
+    }
     setQuestions((prev) => prev.filter((q) => q.id !== id));
     setEditingId(null);
     setAnswerText("");
