@@ -1,98 +1,103 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import type { Prisma } from '@prisma/client'
-import { router, protectedProcedure } from '../trpc'
+import { router, publicProcedure } from '../trpc'
 
 // ─── Wizard step schemas ─────────────────────────────────────────────────────
 
 const wizardStepDataSchema = z.record(z.string(), z.unknown())
 
 /**
- * Wizard state is stored as a JSON object in cookies via a WizardSession
- * concept. Since we need persistence across requests, we store it in a
- * simple key-value table or use the user's session metadata.
+ * Wizard state is stored in the WizardSession Prisma model.
+ * Steps are persisted as a JSON object keyed by step number.
  *
- * For simplicity, we use a prisma-backed approach: store wizard progress
- * in a JSON field associated with the user. We'll use a convention where
- * the bot's creation is tracked with a temporary "draft" bot approach.
- *
- * Implementation: We store wizard state as JSON in memory keyed by
- * `userId:wizardId`. In production, replace with Redis or a DB table.
+ * All procedures are publicProcedure so the wizard works before auth.
+ * We resolve the identifier as: session userId (if authenticated) OR clientId from input.
  */
 
-// In-memory store for wizard sessions (replace with Redis in production)
-const wizardStore = new Map<
-  string,
-  {
-    steps: Record<number, unknown>
-    updatedAt: Date
-  }
->()
-
-// Clean up old wizard sessions (older than 24 hours)
-function cleanupWizardStore() {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  for (const [key, value] of wizardStore.entries()) {
-    if (value.updatedAt < cutoff) {
-      wizardStore.delete(key)
-    }
-  }
+function resolveUserId(
+  session: { user?: { id?: string } } | null,
+  clientId?: string
+): string {
+  const userId = session?.user?.id
+  if (userId) return userId
+  if (clientId) return `client:${clientId}`
+  throw new TRPCError({
+    code: 'BAD_REQUEST',
+    message: 'Either authentication or clientId is required.',
+  })
 }
 
 export const wizardRouter = router({
   // ─── Save a wizard step ────────────────────────────────────────────────────
-  saveStep: protectedProcedure
+  saveStep: publicProcedure
     .input(
       z.object({
         wizardId: z.string().default('default'),
         step: z.number().int().min(1).max(10),
         data: wizardStepDataSchema,
+        clientId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session!.user!.id as string
-      const key = `${userId}:${input.wizardId}`
+      const userId = resolveUserId(ctx.session, input.clientId)
 
-      const existing = wizardStore.get(key) ?? {
-        steps: {},
-        updatedAt: new Date(),
+      // Read existing session to merge steps
+      const existing = await ctx.prisma.wizardSession.findUnique({
+        where: { userId },
+      })
+
+      const currentSteps =
+        (existing?.steps as Record<string, unknown>) ?? {}
+      const updatedSteps = {
+        ...currentSteps,
+        [input.step]: input.data,
       }
 
-      existing.steps[input.step] = input.data
-      existing.updatedAt = new Date()
-      wizardStore.set(key, existing)
-
-      // Periodic cleanup
-      if (Math.random() < 0.1) cleanupWizardStore()
+      await ctx.prisma.wizardSession.upsert({
+        where: { userId },
+        create: {
+          userId,
+          steps: updatedSteps as Prisma.InputJsonValue,
+        },
+        update: {
+          steps: updatedSteps as Prisma.InputJsonValue,
+        },
+      })
 
       return {
         step: input.step,
-        totalSteps: Object.keys(existing.steps).length,
+        totalSteps: Object.keys(updatedSteps).length,
       }
     }),
 
   // ─── Get wizard progress ──────────────────────────────────────────────────
-  getProgress: protectedProcedure
+  getProgress: publicProcedure
     .input(
       z.object({
         wizardId: z.string().default('default'),
+        clientId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session!.user!.id as string
-      const key = `${userId}:${input.wizardId}`
+      const userId = resolveUserId(ctx.session, input.clientId)
 
-      const session = wizardStore.get(key)
+      const session = await ctx.prisma.wizardSession.findUnique({
+        where: { userId },
+      })
+
       if (!session) {
         return {
-          steps: {} as Record<number, unknown>,
+          steps: {} as Record<string, unknown>,
           currentStep: 0,
           isComplete: false,
         }
       }
 
-      const completedSteps = Object.keys(session.steps)
+      const steps = (session.steps as Record<string, unknown>) ?? {}
+      const completedSteps = Object.keys(steps)
         .map(Number)
+        .filter((n) => !isNaN(n))
         .sort((a, b) => a - b)
       const currentStep =
         completedSteps.length > 0
@@ -100,33 +105,42 @@ export const wizardRouter = router({
           : 0
 
       return {
-        steps: session.steps,
+        steps,
         currentStep,
         isComplete: false,
       }
     }),
 
   // ─── Complete wizard — create bot from all steps ──────────────────────────
-  complete: protectedProcedure
+  complete: publicProcedure
     .input(
       z.object({
         wizardId: z.string().default('default'),
+        clientId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session!.user!.id as string
-      const key = `${userId}:${input.wizardId}`
+      const userId = resolveUserId(ctx.session, input.clientId)
 
-      const session = wizardStore.get(key)
-      if (!session || Object.keys(session.steps).length === 0) {
+      const wizardSession = await ctx.prisma.wizardSession.findUnique({
+        where: { userId },
+      })
+
+      if (
+        !wizardSession ||
+        !wizardSession.steps ||
+        Object.keys(wizardSession.steps as Record<string, unknown>).length === 0
+      ) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'No wizard data found. Please complete the wizard steps first.',
         })
       }
 
-      // Aggregate all step data
-      const allData = Object.values(session.steps).reduce<
+      const stepsData = wizardSession.steps as Record<string, unknown>
+
+      // Aggregate all step data into a flat object
+      const allData = Object.values(stepsData).reduce<
         Record<string, unknown>
       >((acc, stepData) => {
         if (stepData && typeof stepData === 'object') {
@@ -149,10 +163,20 @@ export const wizardRouter = router({
         })
       }
 
+      // For bot creation we need a real user ID (not client:xxx)
+      // If authenticated, use session user id; otherwise the userId from resolveUserId
+      const realUserId = ctx.session?.user?.id
+      if (!realUserId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to create a bot.',
+        })
+      }
+
       // Create the bot with all aggregated data
       const bot = await ctx.prisma.bot.create({
         data: {
-          userId,
+          userId: realUserId,
           name,
           description,
           businessType,
@@ -207,8 +231,10 @@ export const wizardRouter = router({
         })
       }
 
-      // Clean up wizard session
-      wizardStore.delete(key)
+      // Clean up wizard session from DB
+      await ctx.prisma.wizardSession.delete({
+        where: { userId },
+      })
 
       // Return the created bot with relations
       const fullBot = await ctx.prisma.bot.findUnique({

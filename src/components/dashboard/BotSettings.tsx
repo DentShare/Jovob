@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 
 interface BotConfig {
   name: string;
@@ -27,13 +29,79 @@ const defaultConfig: BotConfig = {
 const allDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 export default function BotSettings() {
+  const { currentBotId, isDemo } = useBotContext();
   const [config, setConfig] = useState(defaultConfig);
   const [saved, setSaved] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Fetch real bot data
+  const botQuery = trpc.bot.getById.useQuery(
+    { id: currentBotId! },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  // Mutation for saving
+  const updateMutation = trpc.bot.update.useMutation({
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      botQuery.refetch();
+    },
+  });
+
+  const deleteMutation = trpc.bot.delete.useMutation({
+    onSuccess: () => {
+      // Redirect after deletion
+      if (typeof window !== "undefined") {
+        window.location.href = "/create";
+      }
+    },
+  });
+
+  // Populate config from real bot data
+  useEffect(() => {
+    if (!isDemo && botQuery.data) {
+      const bot = botQuery.data;
+      const wh = bot.workingHours as Record<string, unknown> | null;
+      setConfig({
+        name: bot.name,
+        description: bot.description ?? "",
+        personality: bot.personality ?? "",
+        welcomeMessage: bot.welcomeMessage ?? "",
+        workingHoursStart: (wh?.start as string) ?? "08:00",
+        workingHoursEnd: (wh?.end as string) ?? "22:00",
+        workingDays: (wh?.days as string[]) ?? allDays,
+        isActive: bot.isActive,
+      });
+    }
+  }, [isDemo, botQuery.data]);
+
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (isDemo) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      return;
+    }
+    updateMutation.mutate({
+      id: currentBotId!,
+      name: config.name,
+      description: config.description,
+      personality: config.personality,
+      welcomeMessage: config.welcomeMessage,
+      workingHours: {
+        start: config.workingHoursStart,
+        end: config.workingHoursEnd,
+        days: config.workingDays,
+      },
+    });
+  };
+
+  const handleDelete = () => {
+    if (isDemo) {
+      setShowDeleteConfirm(false);
+      return;
+    }
+    deleteMutation.mutate({ id: currentBotId! });
   };
 
   const toggleDay = (day: string) => {
@@ -202,13 +270,14 @@ export default function BotSettings() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
+          disabled={updateMutation.isPending}
           className={`rounded-lg px-6 py-2.5 text-sm font-medium text-white transition-all ${
             saved
               ? "bg-green-500"
               : "bg-[#3B82F6] hover:bg-[#2563EB]"
-          }`}
+          } disabled:opacity-50`}
         >
-          {saved ? "Сохранено!" : "Сохранить изменения"}
+          {updateMutation.isPending ? "Сохранение..." : saved ? "Сохранено!" : "Сохранить изменения"}
         </button>
       </div>
 
@@ -259,10 +328,11 @@ export default function BotSettings() {
                 Отмена
               </button>
               <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
               >
-                Удалить
+                {deleteMutation.isPending ? "Удаление..." : "Удалить"}
               </button>
             </div>
           </div>

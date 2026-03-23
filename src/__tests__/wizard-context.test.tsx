@@ -1,6 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import React from 'react'
+
+// Mock tRPC to avoid needing a tRPC provider
+vi.mock('@/lib/trpc', () => ({
+  trpc: {
+    wizard: {
+      saveStep: {
+        useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+      },
+      complete: {
+        useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+      },
+    },
+  },
+}))
+
 import { WizardProvider, useWizard } from '@/components/wizard/WizardContext'
 
 function wrapper({ children }: { children: React.ReactNode }) {

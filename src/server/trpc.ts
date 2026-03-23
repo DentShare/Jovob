@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import type { PrismaClient } from '@prisma/client'
 import type { Session } from 'next-auth'
 
@@ -26,7 +27,7 @@ export interface Context {
 }
 
 export async function createContext(): Promise<Context> {
-  const session = await getServerSession().catch(() => null)
+  const session = await getServerSession(authOptions).catch(() => null)
 
   return {
     prisma,

@@ -20,13 +20,17 @@ const t = {
     faqCount: "вопросов",
     test: "Протестировать бота в Telegram",
     launch: "Запустить бота!",
+    launching: "Создаём бота...",
     freeBadge: "100 контактов бесплатно, без карты",
-    launched: "Бот успешно запущен!",
+    launched: "Бот создан!",
     launchedSub: "Перейдите в Telegram чтобы протестировать",
     formal: "Деловой",
     friendly: "Дружеский",
     fun: "Весёлый",
     telegram: "Telegram",
+    retry: "Попробовать снова",
+    errorTitle: "Ошибка создания бота",
+    redirecting: "Переход в панель управления...",
   },
   uz: {
     title: "Hammasi tayyor!",
@@ -43,13 +47,17 @@ const t = {
     faqCount: "savol",
     test: "Botni Telegramda sinash",
     launch: "Botni ishga tushirish!",
+    launching: "Bot yaratilmoqda...",
     freeBadge: "100 ta kontakt bepul, karta kerak emas",
-    launched: "Bot muvaffaqiyatli ishga tushirildi!",
+    launched: "Bot yaratildi!",
     launchedSub: "Sinash uchun Telegramga o'ting",
     formal: "Rasmiy",
     friendly: "Do'stona",
     fun: "Quvnoq",
     telegram: "Telegram",
+    retry: "Qaytadan urinish",
+    errorTitle: "Bot yaratishda xatolik",
+    redirecting: "Boshqaruv paneliga o'tish...",
   },
   en: {
     title: "Ready to launch!",
@@ -66,13 +74,17 @@ const t = {
     faqCount: "questions",
     test: "Test bot in Telegram",
     launch: "Launch bot!",
+    launching: "Creating bot...",
     freeBadge: "100 contacts free, no card needed",
-    launched: "Bot launched successfully!",
+    launched: "Bot created!",
     launchedSub: "Go to Telegram to test it",
     formal: "Formal",
     friendly: "Friendly",
     fun: "Fun",
     telegram: "Telegram",
+    retry: "Try again",
+    errorTitle: "Error creating bot",
+    redirecting: "Redirecting to dashboard...",
   },
 };
 
@@ -146,15 +158,27 @@ function fireConfetti() {
 }
 
 export default function Step10Review() {
-  const { state, goToStep } = useWizard();
+  const { state, goToStep, completeWizard, isCompleting, completeError } = useWizard();
   const lang = state.language;
   const texts = t[lang] || t.ru;
   const [launched, setLaunched] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleLaunch = useCallback(() => {
-    setLaunched(true);
-    fireConfetti();
-  }, []);
+  const handleLaunch = useCallback(async () => {
+    setErrorMsg(null);
+    const result = await completeWizard();
+    if (result) {
+      setLaunched(true);
+      fireConfetti();
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 2000);
+    } else {
+      // completeError will be set by context, but we also capture locally
+      setErrorMsg(completeError || "Unknown error occurred");
+    }
+  }, [completeWizard, completeError]);
 
   const langDisplay = state.botLanguages
     .map((l) => (l === "ru" ? "Русский" : l === "uz" ? "O'zbekcha" : l))
@@ -232,22 +256,32 @@ export default function Step10Review() {
         >
           {texts.launchedSub}
         </motion.p>
-        <motion.a
-          href={`https://t.me/bot_${state.telegramToken.split(":")[0]}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-8 py-3 bg-blue-500 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-600 transition-colors"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        <motion.p
+          className="text-slate-400 text-sm mb-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
-          </svg>
-          {texts.test}
-        </motion.a>
+          {texts.redirecting}
+        </motion.p>
+        {state.telegramToken && (
+          <motion.a
+            href={`https://t.me/bot_${state.telegramToken.split(":")[0]}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-8 py-3 bg-blue-500 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-600 transition-colors"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+            </svg>
+            {texts.test}
+          </motion.a>
+        )}
         <motion.div
           className="mt-6"
           initial={{ opacity: 0 }}
@@ -307,6 +341,27 @@ export default function Step10Review() {
         ))}
       </div>
 
+      {/* Error message with retry */}
+      {(errorMsg || completeError) && (
+        <motion.div
+          className="max-w-lg mx-auto mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-sm font-medium text-red-700 mb-1">{texts.errorTitle}</p>
+            <p className="text-xs text-red-500 mb-3">{errorMsg || completeError}</p>
+            <button
+              onClick={handleLaunch}
+              disabled={isCompleting}
+              className="text-sm text-red-600 hover:text-red-800 underline font-medium"
+            >
+              {texts.retry}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Free badge */}
       <motion.div
         className="text-center mb-6"
@@ -353,11 +408,26 @@ export default function Step10Review() {
       >
         <motion.button
           onClick={handleLaunch}
-          className="px-10 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-lg font-bold rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-purple-500/30 transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
+          disabled={isCompleting}
+          className={`px-10 py-4 text-white text-lg font-bold rounded-2xl shadow-xl transition-all ${
+            isCompleting
+              ? "bg-gradient-to-r from-blue-400 to-purple-400 opacity-75 cursor-not-allowed shadow-blue-300/20"
+              : "bg-gradient-to-r from-blue-500 to-purple-500 shadow-blue-500/30 hover:shadow-2xl hover:shadow-purple-500/30"
+          }`}
+          whileHover={isCompleting ? {} : { scale: 1.05 }}
+          whileTap={isCompleting ? {} : { scale: 0.97 }}
         >
-          🚀 {texts.launch}
+          {isCompleting ? (
+            <span className="inline-flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {texts.launching}
+            </span>
+          ) : (
+            <>🚀 {texts.launch}</>
+          )}
         </motion.button>
       </motion.div>
     </div>

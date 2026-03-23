@@ -1,21 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDemo } from "./DemoContext";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 import type { DemoUnanswered } from "./DemoContext";
 
 export default function UnansweredQuestions() {
-  const { currentBot } = useDemo();
-  const [questions, setQuestions] = useState<DemoUnanswered[]>(currentBot.unanswered);
+  const { currentBot: demoBot } = useDemo();
+  const { currentBotId, isDemo } = useBotContext();
+
+  const unansweredQuery = trpc.conversation.getUnanswered.useQuery(
+    { botId: currentBotId! },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  // Map real unanswered to DemoUnanswered format
+  const realUnanswered: DemoUnanswered[] = useMemo(() => {
+    if (isDemo || !unansweredQuery.data) return [];
+    return unansweredQuery.data.map((c) => ({
+      id: c.id,
+      question: c.messages[0]?.content ?? "Без текста",
+      askedCount: c._count.messages,
+      lastAsked: new Date(c.updatedAt).toLocaleDateString("ru-RU"),
+    }));
+  }, [isDemo, unansweredQuery.data]);
+
+  const source = isDemo ? demoBot.unanswered : realUnanswered;
+
+  const [questions, setQuestions] = useState<DemoUnanswered[]>(source);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
 
-  // Reset questions when bot switches
+  // Reset questions when bot switches or data changes
   useEffect(() => {
-    setQuestions(currentBot.unanswered);
+    setQuestions(source);
     setEditingId(null);
     setAnswerText("");
-  }, [currentBot]);
+  }, [source]);
 
   const handleAddAnswer = (id: string) => {
     if (!answerText.trim()) return;

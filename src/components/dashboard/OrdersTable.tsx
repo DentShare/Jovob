@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useDemo } from "./DemoContext";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 
 type OrderStatus = "NEW" | "CONFIRMED" | "PREPARING" | "DELIVERED" | "CANCELLED";
 
@@ -113,11 +116,53 @@ function formatPrice(sum: number): string {
 }
 
 export default function OrdersTable() {
+  const { currentBotId, isDemo } = useBotContext();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<OrderStatus | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = demoOrders.filter((o) => {
+  // Fetch real orders
+  const ordersQuery = trpc.order.list.useQuery(
+    { botId: currentBotId!, limit: 50 },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  // Mutation for updating order status
+  const updateStatusMutation = trpc.order.updateStatus.useMutation({
+    onSuccess: () => {
+      ordersQuery.refetch();
+    },
+  });
+
+  // Map real orders to the Order interface
+  const realOrders: Order[] = useMemo(() => {
+    if (isDemo || !ordersQuery.data) return [];
+    return ordersQuery.data.orders.map((o, idx) => {
+      const items = Array.isArray(o.items)
+        ? (o.items as Array<{ name?: string; productId?: string; quantity?: number; price?: number }>).map((item) => ({
+            name: item.name ?? item.productId ?? "Item",
+            qty: item.quantity ?? 1,
+            price: Number(item.price ?? 0),
+          }))
+        : [];
+      return {
+        id: o.id,
+        orderNumber: 1000 + idx,
+        customerName: o.customerName ?? o.conversation?.customerName ?? "Unknown",
+        phone: o.customerPhone ?? o.conversation?.customerPhone ?? "",
+        items,
+        total: Number(o.total),
+        status: o.status as OrderStatus,
+        date: new Date(o.createdAt).toLocaleString("ru-RU"),
+        address: o.deliveryAddress ?? undefined,
+        note: o.notes ?? undefined,
+      };
+    });
+  }, [isDemo, ordersQuery.data]);
+
+  const orders = isDemo ? demoOrders : realOrders;
+
+  const filtered = orders.filter((o) => {
     if (filterStatus !== "ALL" && o.status !== filterStatus) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -129,6 +174,15 @@ export default function OrdersTable() {
     }
     return true;
   });
+
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    if (isDemo) return;
+    updateStatusMutation.mutate({
+      id: orderId,
+      botId: currentBotId!,
+      status: newStatus,
+    });
+  };
 
   return (
     <div>
@@ -328,9 +382,30 @@ export default function OrdersTable() {
               >
                 Закрыть
               </button>
-              <button className="flex-1 rounded-lg bg-[#3B82F6] py-2 text-sm font-medium text-white hover:bg-[#2563EB] transition-colors">
-                Изменить статус
-              </button>
+              {!isDemo && selectedOrder.status !== "DELIVERED" && selectedOrder.status !== "CANCELLED" && (
+                <select
+                  className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-700 bg-white focus:border-[#3B82F6] focus:outline-none"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleStatusChange(selectedOrder.id, e.target.value as OrderStatus);
+                      setSelectedOrder(null);
+                    }
+                  }}
+                >
+                  <option value="" disabled>Изменить статус</option>
+                  {(["NEW", "CONFIRMED", "PREPARING", "DELIVERED", "CANCELLED"] as OrderStatus[])
+                    .filter((s) => s !== selectedOrder.status)
+                    .map((s) => (
+                      <option key={s} value={s}>{statusConfig[s].label}</option>
+                    ))}
+                </select>
+              )}
+              {isDemo && (
+                <button className="flex-1 rounded-lg bg-[#3B82F6] py-2 text-sm font-medium text-white hover:bg-[#2563EB] transition-colors">
+                  Изменить статус
+                </button>
+              )}
             </div>
           </div>
         </div>

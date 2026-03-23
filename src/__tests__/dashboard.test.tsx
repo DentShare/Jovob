@@ -38,6 +38,33 @@ vi.stubGlobal('performance', {
   now: () => 0,
 })
 
+// Mock tRPC to avoid needing a tRPC provider
+vi.mock('@/lib/trpc', () => ({
+  trpc: {
+    bot: {
+      getMetrics: {
+        useQuery: () => ({ data: null, isLoading: false }),
+      },
+      getByUserId: {
+        useQuery: () => ({ data: [], isLoading: false }),
+      },
+    },
+    conversation: {
+      list: {
+        useQuery: () => ({ data: null, isLoading: false }),
+      },
+    },
+    order: {
+      list: {
+        useQuery: () => ({ data: null, isLoading: false }),
+      },
+      updateStatus: {
+        useMutation: () => ({ mutate: vi.fn() }),
+      },
+    },
+  },
+}))
+
 describe('Dashboard components', () => {
   describe('MetricsCards', () => {
     it('renders 4 metric cards', async () => {
@@ -50,7 +77,7 @@ describe('Dashboard components', () => {
       expect(screen.getByText('Новых клиентов')).toBeInTheDocument()
       expect(screen.getByText('AI ответил')).toBeInTheDocument()
 
-      // Check change descriptions
+      // Check change descriptions from bellaModaData demo metrics
       expect(screen.getByText(/\+12% от вчера/)).toBeInTheDocument()
       expect(screen.getByText(/\+3 новых/)).toBeInTheDocument()
     })
@@ -64,12 +91,12 @@ describe('Dashboard components', () => {
       // Section title
       expect(screen.getByText('Последние диалоги')).toBeInTheDocument()
 
-      // Customer names
-      expect(screen.getByText('Азиз Каримов')).toBeInTheDocument()
-      expect(screen.getByText('Нилуфар Хасанова')).toBeInTheDocument()
-      expect(screen.getByText('Фарход Ахмедов')).toBeInTheDocument()
+      // Customer names from bellaModaData demo dialogs
       expect(screen.getByText('Дилноза Рахимова')).toBeInTheDocument()
-      expect(screen.getByText('Бахром Усманов')).toBeInTheDocument()
+      expect(screen.getByText('Нодира Усманова')).toBeInTheDocument()
+      expect(screen.getByText('Шахло Каримова')).toBeInTheDocument()
+      expect(screen.getByText('Алишер Маматов')).toBeInTheDocument()
+      expect(screen.getByText('Камола Ибрагимова')).toBeInTheDocument()
 
       // Link to all dialogs
       expect(screen.getByText(/Все диалоги/)).toBeInTheDocument()

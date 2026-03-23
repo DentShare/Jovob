@@ -170,6 +170,58 @@ export const botRouter = router({
       return { success: true }
     }),
 
+  // ─── Get bot metrics ───────────────────────────────────────────────────────
+  getMetrics: protectedProcedure
+    .input(z.object({ botId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({
+        where: { id: input.botId },
+      })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const [messagesToday, ordersTotal, newClientsToday, totalMessages, aiMessages] =
+        await Promise.all([
+          ctx.prisma.message.count({
+            where: {
+              conversation: { botId: input.botId },
+              createdAt: { gte: today },
+            },
+          }),
+          ctx.prisma.order.count({
+            where: { botId: input.botId },
+          }),
+          ctx.prisma.conversation.count({
+            where: { botId: input.botId, createdAt: { gte: today } },
+          }),
+          ctx.prisma.message.count({
+            where: { conversation: { botId: input.botId } },
+          }),
+          ctx.prisma.message.count({
+            where: {
+              conversation: { botId: input.botId },
+              role: 'ASSISTANT',
+              confidence: { gte: 0.6 },
+            },
+          }),
+        ])
+
+      return {
+        messagesToday,
+        ordersTotal,
+        newClientsToday,
+        aiAnswerRate:
+          totalMessages > 0
+            ? Math.round((aiMessages / totalMessages) * 100)
+            : 0,
+      }
+    }),
+
   // ─── Launch bot (activate + register webhook) ──────────────────────────────
   launch: protectedProcedure
     .input(z.object({ id: z.string() }))

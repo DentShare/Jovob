@@ -1,21 +1,27 @@
+"use client";
+
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { DemoProvider } from "@/components/dashboard/DemoContext";
+import { BotProvider, useBotContext } from "@/components/dashboard/BotContext";
 import DemoBanner from "@/components/dashboard/DemoBanner";
 
-export const metadata = {
-  title: "Панель управления — Jovob",
-  description: "Управляйте вашим AI-ботом",
-};
+function DemoBannerWrapper() {
+  const { isDemo } = useBotContext();
+  if (!isDemo) return null;
+  return <DemoBanner />;
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <DemoProvider>
-      <div className="flex flex-col h-screen">
-        <DemoBanner />
-        <div className="flex-1 min-h-0">
-          <DashboardLayout>{children}</DashboardLayout>
+      <BotProvider>
+        <div className="flex flex-col h-screen">
+          <DemoBannerWrapper />
+          <div className="flex-1 min-h-0">
+            <DashboardLayout>{children}</DashboardLayout>
+          </div>
         </div>
-      </div>
+      </BotProvider>
     </DemoProvider>
   );
 }

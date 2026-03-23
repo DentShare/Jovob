@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 
 interface FaqItem {
   id: string;
@@ -20,7 +22,7 @@ const demoFaq: FaqItem[] = [
   {
     id: "1",
     question: "Как сделать заказ?",
-    answer: "Выберите товары из каталога, добавьте в корзину и нажмите «Оформить заказ». Укажите адрес доставки и способ оплаты.",
+    answer: "Выберите товары из каталога, добавьте в корзину и нажмите \"Оформить заказ\". Укажите адрес доставки и способ оплаты.",
   },
   {
     id: "2",
@@ -30,7 +32,7 @@ const demoFaq: FaqItem[] = [
   {
     id: "3",
     question: "Сколько стоит доставка?",
-    answer: "Доставка по Ташкенту бесплатная при заказе от 100 000 сум. При заказе менее этой суммы — 15 000 сум.",
+    answer: "Доставка по Ташкенту бесплатная при заказе от 100 000 сум. При заказе менее этой суммы -- 15 000 сум.",
   },
   {
     id: "4",
@@ -51,20 +53,62 @@ const demoDocs: Document[] = [
 ];
 
 const docIcons: Record<string, string> = {
-  pdf: "📄",
-  docx: "📝",
-  txt: "📃",
+  pdf: "\uD83D\uDCC4",
+  docx: "\uD83D\uDCDD",
+  txt: "\uD83D\uDCC3",
 };
 
 export default function KnowledgeBase() {
+  const { currentBotId, isDemo } = useBotContext();
   const [activeTab, setActiveTab] = useState<"faq" | "docs">("faq");
-  const [faqItems, setFaqItems] = useState(demoFaq);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQ, setEditQ] = useState("");
   const [editA, setEditA] = useState("");
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [newQ, setNewQ] = useState("");
   const [newA, setNewA] = useState("");
+
+  // Fetch real FAQ
+  const faqQuery = trpc.faq.list.useQuery(
+    { botId: currentBotId! },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  // Mutations
+  const createFaqMutation = trpc.faq.create.useMutation({
+    onSuccess: () => {
+      faqQuery.refetch();
+      setShowAddFaq(false);
+      setNewQ("");
+      setNewA("");
+    },
+  });
+
+  const updateFaqMutation = trpc.faq.update.useMutation({
+    onSuccess: () => {
+      faqQuery.refetch();
+      setEditingId(null);
+    },
+  });
+
+  const deleteFaqMutation = trpc.faq.delete.useMutation({
+    onSuccess: () => faqQuery.refetch(),
+  });
+
+  // Map real FAQ to local format
+  const realFaqItems: FaqItem[] = useMemo(() => {
+    if (isDemo || !faqQuery.data) return [];
+    return faqQuery.data.map((f) => ({
+      id: f.id,
+      question: f.question,
+      answer: f.answer,
+    }));
+  }, [isDemo, faqQuery.data]);
+
+  // Local state for demo mode editing
+  const [localDemoFaq, setLocalDemoFaq] = useState(demoFaq);
+
+  const faqItems = isDemo ? localDemoFaq : realFaqItems;
 
   const startEdit = (item: FaqItem) => {
     setEditingId(item.id);
@@ -74,27 +118,48 @@ export default function KnowledgeBase() {
 
   const saveEdit = () => {
     if (!editQ.trim() || !editA.trim()) return;
-    setFaqItems((prev) =>
-      prev.map((f) =>
-        f.id === editingId ? { ...f, question: editQ, answer: editA } : f
-      )
-    );
-    setEditingId(null);
+    if (isDemo) {
+      setLocalDemoFaq((prev) =>
+        prev.map((f) =>
+          f.id === editingId ? { ...f, question: editQ, answer: editA } : f
+        )
+      );
+      setEditingId(null);
+    } else {
+      updateFaqMutation.mutate({
+        id: editingId!,
+        botId: currentBotId!,
+        question: editQ,
+        answer: editA,
+      });
+    }
   };
 
   const deleteFaq = (id: string) => {
-    setFaqItems((prev) => prev.filter((f) => f.id !== id));
+    if (isDemo) {
+      setLocalDemoFaq((prev) => prev.filter((f) => f.id !== id));
+    } else {
+      deleteFaqMutation.mutate({ id, botId: currentBotId! });
+    }
   };
 
   const addFaq = () => {
     if (!newQ.trim() || !newA.trim()) return;
-    setFaqItems((prev) => [
-      ...prev,
-      { id: Date.now().toString(), question: newQ, answer: newA },
-    ]);
-    setNewQ("");
-    setNewA("");
-    setShowAddFaq(false);
+    if (isDemo) {
+      setLocalDemoFaq((prev) => [
+        ...prev,
+        { id: Date.now().toString(), question: newQ, answer: newA },
+      ]);
+      setNewQ("");
+      setNewA("");
+      setShowAddFaq(false);
+    } else {
+      createFaqMutation.mutate({
+        botId: currentBotId!,
+        question: newQ,
+        answer: newA,
+      });
+    }
   };
 
   return (
@@ -159,10 +224,10 @@ export default function KnowledgeBase() {
               <div className="flex gap-2">
                 <button
                   onClick={addFaq}
-                  disabled={!newQ.trim() || !newA.trim()}
+                  disabled={!newQ.trim() || !newA.trim() || createFaqMutation.isPending}
                   className="rounded-lg bg-[#3B82F6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#2563EB] transition-colors disabled:opacity-50"
                 >
-                  Сохранить
+                  {createFaqMutation.isPending ? "..." : "Сохранить"}
                 </button>
                 <button
                   onClick={() => { setShowAddFaq(false); setNewQ(""); setNewA(""); }}
@@ -198,9 +263,10 @@ export default function KnowledgeBase() {
                     <div className="flex gap-2">
                       <button
                         onClick={saveEdit}
-                        className="rounded-lg bg-[#3B82F6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#2563EB] transition-colors"
+                        disabled={updateFaqMutation.isPending}
+                        className="rounded-lg bg-[#3B82F6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#2563EB] transition-colors disabled:opacity-50"
                       >
-                        Сохранить
+                        {updateFaqMutation.isPending ? "..." : "Сохранить"}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}

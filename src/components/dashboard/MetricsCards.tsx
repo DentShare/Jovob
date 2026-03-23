@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useDemo } from "./DemoContext";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 
 interface MetricCard {
   icon: React.ReactNode;
@@ -79,8 +81,26 @@ function MetricCardComponent({ metric }: { metric: MetricCard }) {
 }
 
 export default function MetricsCards() {
-  const { currentBot } = useDemo();
-  const m = currentBot.metrics;
+  const { currentBot: realBot, currentBotId, isDemo } = useBotContext();
+  const { currentBot: demoBot } = useDemo();
+
+  const metricsQuery = trpc.bot.getMetrics.useQuery(
+    { botId: currentBotId! },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  const m = !isDemo && metricsQuery.data
+    ? {
+        messagesToday: metricsQuery.data.messagesToday,
+        messagesChange: "",
+        ordersTotal: metricsQuery.data.ordersTotal,
+        ordersChange: "",
+        newClients: metricsQuery.data.newClientsToday,
+        clientsChange: "",
+        aiAnswerRate: metricsQuery.data.aiAnswerRate,
+        aiChange: "",
+      }
+    : demoBot.metrics;
 
   const metrics: MetricCard[] = [
     {
@@ -141,7 +161,7 @@ export default function MetricsCards() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {metrics.map((metric, i) => (
-        <MetricCardComponent key={`${currentBot.id}-${i}`} metric={metric} />
+        <MetricCardComponent key={`${isDemo ? demoBot.id : currentBotId}-${i}`} metric={metric} />
       ))}
     </div>
   );

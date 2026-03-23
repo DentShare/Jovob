@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { trpc } from "@/lib/trpc";
 
 export interface WizardState {
   currentStep: number;
@@ -64,11 +65,24 @@ interface WizardContextValue {
   goToStep: (step: number) => void;
   getCurrentStep: () => number;
   direction: number;
+  completeWizard: () => Promise<{ id: string; name: string } | null>;
+  isCompleting: boolean;
+  completeError: string | null;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
 
 const STORAGE_KEY = "jovob_wizard_state";
+
+function getClientId(): string {
+  if (typeof window === "undefined") return "server";
+  let clientId = localStorage.getItem("jovob_client_id");
+  if (!clientId) {
+    clientId = `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem("jovob_client_id", clientId);
+  }
+  return clientId;
+}
 
 function loadState(): WizardState {
   if (typeof window === "undefined") return defaultState;
@@ -96,7 +110,14 @@ function saveState(state: WizardState) {
 export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WizardState>(defaultState);
   const [direction, setDirection] = useState(1);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const initialized = useRef(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // tRPC hooks — always called (rules of hooks), but we guard actual usage
+  const saveStepMutation = trpc.wizard.saveStep.useMutation();
+  const completeMutation = trpc.wizard.complete.useMutation();
 
   useEffect(() => {
     if (!initialized.current) {
@@ -111,9 +132,38 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state]);
 
-  const setStepData = useCallback((data: Partial<WizardState>) => {
-    setState((prev) => ({ ...prev, ...data }));
-  }, []);
+  // Debounced save to backend
+  const debounceSaveToBackend = useCallback(
+    (step: number, data: Record<string, unknown>) => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      debounceTimer.current = setTimeout(() => {
+        try {
+          saveStepMutation.mutate({
+            step,
+            data,
+            clientId: getClientId(),
+          });
+        } catch {
+          // Silently fail — localStorage is the primary store
+        }
+      }, 1000);
+    },
+    [saveStepMutation]
+  );
+
+  const setStepData = useCallback(
+    (data: Partial<WizardState>) => {
+      setState((prev) => {
+        const next = { ...prev, ...data };
+        // Debounce save to backend for the current step
+        debounceSaveToBackend(prev.currentStep, data as Record<string, unknown>);
+        return next;
+      });
+    },
+    [debounceSaveToBackend]
+  );
 
   const goNext = useCallback(() => {
     setDirection(1);
@@ -140,9 +190,43 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentStep = useCallback(() => state.currentStep, [state.currentStep]);
 
+  const completeWizard = useCallback(async (): Promise<{ id: string; name: string } | null> => {
+    setIsCompleting(true);
+    setCompleteError(null);
+
+    try {
+      const result = await completeMutation.mutateAsync({
+        clientId: getClientId(),
+      });
+      // Clear localStorage on success
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      return result as { id: string; name: string } | null;
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create bot. Please try again.";
+      setCompleteError(message);
+      return null;
+    } finally {
+      setIsCompleting(false);
+    }
+  }, [completeMutation]);
+
   return (
     <WizardContext.Provider
-      value={{ state, setStepData, goNext, goBack, goToStep, getCurrentStep, direction }}
+      value={{
+        state,
+        setStepData,
+        goNext,
+        goBack,
+        goToStep,
+        getCurrentStep,
+        direction,
+        completeWizard,
+        isCompleting,
+        completeError,
+      }}
     >
       {children}
     </WizardContext.Provider>

@@ -4,10 +4,16 @@ import MetricsCards from "@/components/dashboard/MetricsCards";
 import QuickActions from "@/components/dashboard/QuickActions";
 import RecentDialogs from "@/components/dashboard/RecentDialogs";
 import UnansweredQuestions from "@/components/dashboard/UnansweredQuestions";
+import { useBotContext } from "@/components/dashboard/BotContext";
 import { useDemo } from "@/components/dashboard/DemoContext";
 
 export default function DashboardPage() {
-  const { currentBot } = useDemo();
+  const { currentBot: realBot, isDemo } = useBotContext();
+  const { currentBot: demoBot } = useDemo();
+
+  const botName = isDemo
+    ? demoBot.name
+    : (realBot && "name" in realBot ? realBot.name : "Бот");
 
   return (
     <div className="space-y-6">
@@ -15,7 +21,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Панель управления</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Обзор активности бота <span className="font-medium text-gray-700">{currentBot.name}</span> за сегодня
+          Обзор активности бота <span className="font-medium text-gray-700">{botName}</span> за сегодня
         </p>
       </div>
 

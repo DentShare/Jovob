@@ -39,16 +39,70 @@ enum BookingStatus {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  telegramId    BigInt?   @unique
-  phone         String?   @unique
-  name          String
-  email         String?
-  language      String    @default("ru")
-  plan          Plan      @default(FREE)
-  planExpiresAt DateTime?
-  bots          Bot[]
-  createdAt     DateTime  @default(now())
+  id              String    @id @default(cuid())
+  telegramId      BigInt?   @unique
+  phone           String?   @unique
+  name            String
+  email           String?   @unique
+  emailVerified   DateTime?
+  hashedPassword  String?
+  image           String?
+  language        String    @default("ru")
+  plan            Plan      @default(FREE)
+  planExpiresAt   DateTime?
+  bots            Bot[]
+  accounts        Account[]
+  sessions        AuthSession[]
+  wizardSession   WizardSession?
+  createdAt       DateTime  @default(now())
+}
+
+// ─── NextAuth Models ──────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model WizardSession {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps     Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 model Bot {

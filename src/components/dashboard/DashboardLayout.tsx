@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDemo } from "./DemoContext";
+import { useBotContext } from "./BotContext";
 
 const navItems = [
   { href: "/dashboard", icon: "📊", label: "Главная" },
@@ -23,10 +24,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { currentBot, switchBot } = useDemo();
+  const { currentBot: demoBot, switchBot: switchDemoBot } = useDemo();
+  const { currentBot: realBot, bots, switchBot: switchRealBot, isDemo, currentBotId } = useBotContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [botDropdownOpen, setBotDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Unified bot info for display
+  const displayName = isDemo
+    ? demoBot.name
+    : (realBot && "name" in realBot ? realBot.name : "Бот");
+  const displayEmoji = isDemo ? demoBot.emoji : "\uD83E\uDD16";
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -140,10 +148,10 @@ export default function DashboardLayout({
               className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded bg-[#3B82F6]/10 text-xs">
-                {currentBot.emoji}
+                {displayEmoji}
               </span>
               <span className="max-w-[140px] truncate">
-                {currentBot.name}
+                {displayName}
               </span>
               <svg
                 className={`h-4 w-4 text-gray-400 transition-transform ${
@@ -163,40 +171,65 @@ export default function DashboardLayout({
             </button>
             {botDropdownOpen && (
               <div className="absolute top-full left-0 z-50 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  onClick={() => {
-                    if (currentBot.id !== "bellaModa") switchBot();
-                    setBotDropdownOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
-                    currentBot.id === "bellaModa"
-                      ? "text-[#3B82F6] font-medium"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="text-xs">👗</span>
-                  Bella Moda
-                  {currentBot.id === "bellaModa" && (
-                    <span className="ml-auto text-[#3B82F6]">✓</span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentBot.id !== "opiPlov") switchBot();
-                    setBotDropdownOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
-                    currentBot.id === "opiPlov"
-                      ? "text-[#3B82F6] font-medium"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="text-xs">🍽️</span>
-                  Opi Plov
-                  {currentBot.id === "opiPlov" && (
-                    <span className="ml-auto text-[#3B82F6]">✓</span>
-                  )}
-                </button>
+                {isDemo ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (demoBot.id !== "bellaModa") switchDemoBot();
+                        setBotDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                        demoBot.id === "bellaModa"
+                          ? "text-[#3B82F6] font-medium"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <span className="text-xs">{"\uD83D\uDC57"}</span>
+                      Bella Moda
+                      {demoBot.id === "bellaModa" && (
+                        <span className="ml-auto text-[#3B82F6]">{"\u2713"}</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (demoBot.id !== "opiPlov") switchDemoBot();
+                        setBotDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                        demoBot.id === "opiPlov"
+                          ? "text-[#3B82F6] font-medium"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <span className="text-xs">{"\uD83C\uDF7D\uFE0F"}</span>
+                      Opi Plov
+                      {demoBot.id === "opiPlov" && (
+                        <span className="ml-auto text-[#3B82F6]">{"\u2713"}</span>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  bots.map((bot) => (
+                    <button
+                      key={bot.id}
+                      onClick={() => {
+                        switchRealBot(bot.id);
+                        setBotDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                        bot.id === currentBotId
+                          ? "text-[#3B82F6] font-medium"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <span className="text-xs">{"\uD83E\uDD16"}</span>
+                      {bot.name}
+                      {bot.id === currentBotId && (
+                        <span className="ml-auto text-[#3B82F6]">{"\u2713"}</span>
+                      )}
+                    </button>
+                  ))
+                )}
                 <div className="border-t border-gray-100 mt-1 pt-1">
                   <Link
                     href="/create/language"

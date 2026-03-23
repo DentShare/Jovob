@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useDemo } from "./DemoContext";
+import { useBotContext } from "./BotContext";
+import { trpc } from "@/lib/trpc";
 import type { DemoDialog } from "./DemoContext";
 
 const platformIcons = {
@@ -11,8 +13,31 @@ const platformIcons = {
 };
 
 export default function RecentDialogs() {
-  const { currentBot } = useDemo();
+  const { currentBot: demoBot } = useDemo();
+  const { currentBotId, isDemo } = useBotContext();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const conversationsQuery = trpc.conversation.list.useQuery(
+    { botId: currentBotId!, limit: 6 },
+    { enabled: !isDemo && !!currentBotId, retry: false }
+  );
+
+  // Map real conversations to DemoDialog format for unified rendering
+  const realDialogs: DemoDialog[] = useMemo(() => {
+    if (isDemo || !conversationsQuery.data) return [];
+    return conversationsQuery.data.conversations.map((c) => ({
+      id: c.id,
+      customerName: c.customerName ?? c.platformChatId ?? "Unknown",
+      lastMessage: c.messages[0]?.content ?? "",
+      time: new Date(c.updatedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      platform: (c.platform?.toLowerCase() ?? "telegram") as "telegram" | "instagram" | "whatsapp",
+      status: c.isResolved ? "ai_answered" as const : "operator_needed" as const,
+      unread: !c.isResolved,
+      messages: [],
+    }));
+  }, [isDemo, conversationsQuery.data]);
+
+  const dialogs = isDemo ? demoBot.dialogs : realDialogs;
 
   return (
     <div>
@@ -26,7 +51,7 @@ export default function RecentDialogs() {
         </a>
       </div>
       <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        {currentBot.dialogs.map((dialog: DemoDialog) => {
+        {dialogs.map((dialog: DemoDialog) => {
           const isExpanded = expandedId === dialog.id;
           return (
             <div key={dialog.id} className="border-b border-gray-50 last:border-b-0">
