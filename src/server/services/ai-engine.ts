@@ -1,6 +1,8 @@
 import OpenAI from 'openai'
 import { prisma } from '@/lib/prisma'
 import { buildSystemPrompt } from './prompt-builder'
+import { sanitizeForAI } from '@/lib/sanitize'
+import { logger } from '@/lib/logger'
 import type {
   BotConfig,
   ProcessedMessage,
@@ -70,29 +72,29 @@ export async function processMessage(
     // 4. Search knowledge base for relevant chunks
     const knowledgeChunks = await searchKnowledge(botId, userMessage)
 
-    // 5. Build system prompt
+    // 5. Sanitize user message for AI
+    const { text: sanitizedMessage, injectionDetected } = sanitizeForAI(userMessage)
+    if (injectionDetected) {
+      logger.warn('Prompt injection detected', { botId, platformChatId, userMessage: userMessage.slice(0, 100) })
+    }
+
+    // 6. Build system prompt
     const systemPrompt = buildSystemPrompt(bot)
 
-    // 6. Build messages array for OpenAI
+    // 7. Build messages array for OpenAI
     const messages = buildOpenAIMessages(
       systemPrompt,
       context,
       knowledgeChunks,
-      userMessage
+      sanitizedMessage
     )
 
-    // 7. Call OpenAI (using per-bot settings)
-    const completion = await getOpenAI().chat.completions.create({
-      model: bot.aiModel,
-      messages,
-      max_tokens: bot.aiMaxTokens,
-      temperature: bot.aiTemperature,
-    })
+    // 8. Call OpenAI with retry logic
+    const startTime = Date.now()
+    const { responseText, tokensUsed } = await callOpenAIWithRetry(bot, messages)
+    const latencyMs = Date.now() - startTime
 
-    const responseText =
-      completion.choices[0]?.message?.content?.trim() ?? 'Извините, я не смог обработать ваш запрос.'
-
-    // 8. Analyze response
+    // 9. Analyze response
     const confidence = estimateConfidence(responseText, userMessage, bot)
     const intent = detectIntent(userMessage, responseText)
     const extractedData = extractOrderData(responseText, userMessage, bot.products)
@@ -101,10 +103,13 @@ export async function processMessage(
       responseText.includes('Сейчас подключу менеджера')
     const language = detectLanguage(userMessage)
 
-    // 9. Save messages to DB
+    // 10. Save messages to DB
     await saveMessages(conversation.id, platform, userMessage, responseText, confidence, suggestHandoff)
 
-    // 10. Update conversation language if detected
+    // 11. Log to AILog (fire-and-forget)
+    logAIRequest(botId, conversation.id, userMessage, systemPrompt, responseText, bot.aiModel, tokensUsed, confidence, intent, latencyMs)
+
+    // 12. Update conversation language if detected
     if (language && language !== conversation.language) {
       await prisma.conversation.update({
         where: { id: conversation.id },
@@ -121,11 +126,11 @@ export async function processMessage(
       language,
     }
   } catch (error) {
-    console.error('[AI Engine] Error processing message:', error)
+    logger.error('AI Engine error', { error: String(error), botId })
 
     // Return graceful fallback
     return createErrorResponse(
-      'Произошла ошибка при обработке сообщения. Пожалуйста, попробуйте ещё раз или свяжитесь с менеджером.'
+      'Извините, я временно недоступен. Менеджер скоро ответит.'
     )
   }
 }
@@ -613,6 +618,87 @@ async function saveMessages(
   await prisma.conversation.update({
     where: { id: conversationId },
     data: { updatedAt: new Date() },
+  })
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+// ─── OpenAI Call with Retry ──────────────────────────────────────────────────
+
+const FALLBACK_RESPONSES = [
+  'Извините, я временно не могу обработать ваш запрос. Пожалуйста, попробуйте позже или свяжитесь с менеджером.',
+  'К сожалению, произошла техническая ошибка. Менеджер скоро ответит вам.',
+]
+
+async function callOpenAIWithRetry(
+  bot: BotConfig,
+  messages: OpenAI.ChatCompletionMessageParam[],
+  maxRetries: number = 2
+): Promise<{ responseText: string; tokensUsed: number }> {
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const completion = await getOpenAI().chat.completions.create({
+        model: bot.aiModel,
+        messages,
+        max_tokens: bot.aiMaxTokens,
+        temperature: bot.aiTemperature,
+      })
+
+      return {
+        responseText: completion.choices[0]?.message?.content?.trim()
+          ?? 'Извините, я не смог обработать ваш запрос.',
+        tokensUsed: completion.usage?.total_tokens ?? 0,
+      }
+    } catch (error) {
+      lastError = error
+      logger.warn(`OpenAI attempt ${attempt + 1} failed`, { error: String(error) })
+
+      if (attempt < maxRetries) {
+        // Exponential backoff: 1s, 2s
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+      }
+    }
+  }
+
+  logger.error('OpenAI all retries failed', { error: String(lastError) })
+  return {
+    responseText: FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)],
+    tokensUsed: 0,
+  }
+}
+
+// ─── AILog ──────────────────────────────────────────────────────────────────
+
+function logAIRequest(
+  botId: string,
+  conversationId: string,
+  userMessage: string,
+  systemPrompt: string,
+  aiResponse: string,
+  model: string,
+  tokensUsed: number,
+  confidence: number,
+  intent: string,
+  latencyMs: number
+): void {
+  // Fire-and-forget — don't block the response
+  prisma.aILog.create({
+    data: {
+      botId,
+      conversationId,
+      userMessage,
+      systemPrompt: systemPrompt.slice(0, 10000), // Truncate long prompts
+      aiResponse,
+      model,
+      tokensUsed,
+      confidence,
+      intent,
+      latencyMs,
+    },
+  }).catch((err) => {
+    logger.error('Failed to log AI request', { error: String(err) })
   })
 }
 

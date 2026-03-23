@@ -20,6 +20,9 @@ const DAY_NAMES_RU: Record<string, string> = {
 export function buildSystemPrompt(bot: BotConfig): string {
   const sections: string[] = []
 
+  // ─── Date & Time Context ───────────────────────────────────────────────
+  sections.push(buildDateTimeSection())
+
   // ─── Identity & Role ────────────────────────────────────────────────────
   sections.push(buildIdentitySection(bot))
 
@@ -52,6 +55,9 @@ export function buildSystemPrompt(bot: BotConfig): string {
 
   // ─── Handoff Rules ──────────────────────────────────────────────────────
   sections.push(buildHandoffSection(bot.managerContact))
+
+  // ─── Response Format ──────────────────────────────────────────────────
+  sections.push(buildResponseFormatSection())
 
   return sections.filter(Boolean).join('\n\n')
 }
@@ -249,6 +255,33 @@ function buildOrderInstructionsSection(): string {
 \`\`\`order
 {"items": [{"name": "...", "quantity": N, "price": N}], "total": N}
 \`\`\``
+}
+
+function buildDateTimeSection(): string {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Tashkent',
+  })
+  const timeStr = now.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Tashkent',
+  })
+
+  return `# Текущее время
+Сегодня: ${dateStr}, ${timeStr} (Ташкент, UTC+5).`
+}
+
+function buildResponseFormatSection(): string {
+  return `# Формат ответов
+- Отвечай КРАТКО — не более 300 символов (ограничение Telegram).
+- Используй списки для перечислений.
+- Не повторяй вопрос клиента в ответе.
+- Одно сообщение = один ответ. Не дроби ответ на части.`
 }
 
 function buildHandoffSection(managerContact: string | null): string {

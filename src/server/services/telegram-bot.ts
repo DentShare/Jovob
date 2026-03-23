@@ -1,7 +1,9 @@
 import { Bot, webhookCallback, Context } from 'grammy'
+import crypto from 'crypto'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { processMessage } from './ai-engine'
+import { logger } from '@/lib/logger'
 
 // ─── Bot Instance Cache ─────────────────────────────────────────────────────
 // Cache bot instances to avoid re-creating them on every webhook call.
@@ -50,6 +52,56 @@ export function setupHandlers(bot: Bot, botId: string): void {
     } catch (error) {
       console.error(`[Telegram Bot ${botId}] /start error:`, error)
       await ctx.reply('Добро пожаловать! Чем могу помочь?')
+    }
+  })
+
+  // ─── /help Command ──────────────────────────────────────────────────
+  bot.command('help', async (ctx) => {
+    await ctx.reply(
+      '📋 Доступные команды:\n\n' +
+      '/start — Начать разговор\n' +
+      '/catalog — Посмотреть каталог\n' +
+      '/help — Список команд\n\n' +
+      'Просто напишите мне свой вопрос, и я помогу! 😊'
+    )
+  })
+
+  // ─── /catalog Command ─────────────────────────────────────────────────
+  bot.command('catalog', async (ctx) => {
+    try {
+      const products = await prisma.product.findMany({
+        where: { bot: { id: botId }, inStock: true },
+        orderBy: { sortOrder: 'asc' },
+        take: 20,
+      })
+
+      if (products.length === 0) {
+        await ctx.reply('Каталог пока пуст. Скоро появятся товары!')
+        return
+      }
+
+      // Group by category
+      const grouped = new Map<string, typeof products>()
+      for (const p of products) {
+        const cat = p.category || 'Товары'
+        if (!grouped.has(cat)) grouped.set(cat, [])
+        grouped.get(cat)!.push(p)
+      }
+
+      let text = '📦 Наш каталог:\n'
+      for (const [category, items] of grouped) {
+        text += `\n<b>${category}</b>\n`
+        for (const item of items) {
+          const price = Number(item.price).toLocaleString('ru-RU')
+          text += `• ${item.name} — ${price} ${item.currency}\n`
+        }
+      }
+      text += '\nНапишите название товара для подробностей или заказа.'
+
+      await ctx.reply(text, { parse_mode: 'HTML' })
+    } catch (error) {
+      logger.error('Catalog command error', { botId, error: String(error) })
+      await ctx.reply('Не удалось загрузить каталог. Попробуйте позже.')
     }
   })
 
@@ -181,11 +233,27 @@ export function setupHandlers(bot: Bot, botId: string): void {
 /**
  * Register a Telegram webhook for a bot token.
  */
+/**
+ * Generate a secret token for webhook verification.
+ */
+export function generateWebhookSecret(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex').substring(0, 32)
+}
+
+/**
+ * Verify the webhook secret token from Telegram.
+ */
+export function verifyWebhookSecret(token: string, receivedSecret: string): boolean {
+  const expected = generateWebhookSecret(token)
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(receivedSecret))
+}
+
 export async function registerWebhook(
   token: string,
   webhookUrl: string
 ): Promise<{ success: boolean; description?: string }> {
   try {
+    const secretToken = generateWebhookSecret(token)
     const response = await fetch(
       `https://api.telegram.org/bot${token}/setWebhook`,
       {
@@ -193,6 +261,7 @@ export async function registerWebhook(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: webhookUrl,
+          secret_token: secretToken,
           allowed_updates: ['message', 'callback_query'],
           drop_pending_updates: true,
         }),

@@ -282,3 +282,20 @@ model Booking {
 
   @@index([botId])
 }
+
+model AILog {
+  id              String   @id @default(cuid())
+  botId           String
+  conversationId  String?
+  userMessage     String   @db.Text
+  systemPrompt    String   @db.Text
+  aiResponse      String   @db.Text
+  model           String
+  tokensUsed      Int      @default(0)
+  confidence      Float    @default(0)
+  intent          String   @default("unknown")
+  latencyMs       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([botId, createdAt])
+}
