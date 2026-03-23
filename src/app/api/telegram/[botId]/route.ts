@@ -75,7 +75,7 @@ export async function GET(
   return NextResponse.json({
     status: 'ok',
     botId,
-    service: 'BotUz Telegram Webhook',
+    service: 'Jovob Telegram Webhook',
     timestamp: new Date().toISOString(),
   })
 }

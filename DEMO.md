@@ -1,9 +1,9 @@
-# BotUz v2 — Демонстрация всех функций
+# Jovob v2 — Демонстрация всех функций
 
 ## Быстрый старт
 
 ```bash
-cd botuz
+cd jovob
 npm install
 npm run dev
 # Открыть http://localhost:3000
@@ -137,7 +137,7 @@ npm run dev
 ## Архитектура
 
 ```
-botuz/
+jovob/
 ├── prisma/
 │   ├── schema.prisma          # 11 моделей, 4 enum'а
 │   └── seed.ts                # Демо-данные (Bella Moda + Opi Plov)

@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
-    service: 'BotUz Telegram Webhook',
+    service: 'Jovob Telegram Webhook',
     timestamp: new Date().toISOString(),
   })
 }

@@ -3,7 +3,7 @@ import { DemoProvider } from "@/components/dashboard/DemoContext";
 import DemoBanner from "@/components/dashboard/DemoBanner";
 
 export const metadata = {
-  title: "Панель управления — BotUz v2",
+  title: "Панель управления — Jovob",
   description: "Управляйте вашим AI-ботом",
 };
 

@@ -17,7 +17,7 @@ const footerLinks = {
   support: {
     title: "Поддержка",
     links: [
-      { label: "Telegram-чат", href: "https://t.me/botuz_support" },
+      { label: "Telegram-чат", href: "https://t.me/jovob_support" },
       { label: "FAQ", href: "#faq" },
       { label: "Документация", href: "/docs" },
       { label: "Обратная связь", href: "/feedback" },
@@ -46,8 +46,8 @@ export default function Footer() {
           transition={{ duration: 0.6 }}
           className="max-w-5xl mx-auto relative overflow-hidden rounded-3xl shadow-2xl shadow-blue-500/20"
         >
-          {/* Animated gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_100%] animate-[shimmer_6s_ease-in-out_infinite]" />
+          {/* Gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600" />
 
           {/* Mesh overlay */}
           <div className="absolute inset-0 opacity-10" style={{
@@ -65,7 +65,7 @@ export default function Footer() {
             </h3>
             <p className="text-blue-100 mb-8 text-lg max-w-md mx-auto">
               Присоединяйтесь к 1,247+ бизнесам Узбекистана, которые уже
-              используют BotUz
+              используют Jovob
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -123,7 +123,7 @@ export default function Footer() {
                   <circle cx="14.5" cy="8.5" r="1" fill="white" />
                 </svg>
               </div>
-              <span className="text-lg font-bold">BotUz</span>
+              <span className="text-lg font-bold">Jovob</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-6">
               AI-конструктор ботов для бизнеса в Узбекистане. Telegram,
@@ -132,7 +132,7 @@ export default function Footer() {
             <div className="flex gap-3">
               {/* Telegram */}
               <a
-                href="https://t.me/botuz"
+                href="https://t.me/jovob"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-lg bg-gray-800 hover:bg-blue-500 flex items-center justify-center transition-colors duration-200"
@@ -143,7 +143,7 @@ export default function Footer() {
               </a>
               {/* Instagram */}
               <a
-                href="https://instagram.com/botuz"
+                href="https://instagram.com/jovob"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-lg bg-gray-800 hover:bg-pink-500 flex items-center justify-center transition-colors duration-200"
@@ -189,7 +189,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} BotUz. Все права защищены.
+            &copy; {new Date().getFullYear()} Jovob. Все права защищены.
           </p>
           <div className="flex gap-6 text-sm text-gray-500">
             <Link

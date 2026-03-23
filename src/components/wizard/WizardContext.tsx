@@ -68,7 +68,7 @@ interface WizardContextValue {
 
 const WizardContext = createContext<WizardContextValue | null>(null);
 
-const STORAGE_KEY = "botuz_wizard_state";
+const STORAGE_KEY = "jovob_wizard_state";
 
 function loadState(): WizardState {
   if (typeof window === "undefined") return defaultState;

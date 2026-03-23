@@ -137,7 +137,7 @@ export default function Hero() {
             </svg>
           </div>
           <span className="text-xl font-bold text-white">
-            BotUz
+            Jovob
           </span>
         </motion.div>
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useDemo } from "./DemoContext";
 
 const navItems = [
   { href: "/dashboard", icon: "📊", label: "Главная" },
@@ -16,21 +17,15 @@ const navItems = [
   { href: "/dashboard/settings", icon: "⚙️", label: "Настройки" },
 ];
 
-const demoBots = [
-  { id: "1", name: "FlowerShop Bot" },
-  { id: "2", name: "TechStore Bot" },
-  { id: "3", name: "Cafe Bot" },
-];
-
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { currentBot, switchBot } = useDemo();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [botDropdownOpen, setBotDropdownOpen] = useState(false);
-  const [selectedBot, setSelectedBot] = useState(demoBots[0]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const isActive = (href: string) => {
@@ -57,11 +52,11 @@ export default function DashboardLayout({
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 px-6 border-b border-white/10">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] text-lg font-bold text-white">
-            B
+            J
           </div>
-          <span className="text-lg font-semibold text-white">BotUz</span>
+          <span className="text-lg font-semibold text-white">Jovob</span>
           <span className="ml-auto rounded-full bg-[#8B5CF6]/20 px-2 py-0.5 text-xs text-[#8B5CF6]">
-            v2
+            v1
           </span>
           <button
             className="ml-2 text-white/60 hover:text-white lg:hidden"
@@ -145,10 +140,10 @@ export default function DashboardLayout({
               className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded bg-[#3B82F6]/10 text-xs">
-                🤖
+                {currentBot.emoji}
               </span>
               <span className="max-w-[140px] truncate">
-                {selectedBot.name}
+                {currentBot.name}
               </span>
               <svg
                 className={`h-4 w-4 text-gray-400 transition-transform ${
@@ -168,30 +163,47 @@ export default function DashboardLayout({
             </button>
             {botDropdownOpen && (
               <div className="absolute top-full left-0 z-50 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                {demoBots.map((bot) => (
-                  <button
-                    key={bot.id}
-                    onClick={() => {
-                      setSelectedBot(bot);
-                      setBotDropdownOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
-                      selectedBot.id === bot.id
-                        ? "text-[#3B82F6] font-medium"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <span className="text-xs">🤖</span>
-                    {bot.name}
-                    {selectedBot.id === bot.id && (
-                      <span className="ml-auto text-[#3B82F6]">✓</span>
-                    )}
-                  </button>
-                ))}
+                <button
+                  onClick={() => {
+                    if (currentBot.id !== "bellaModa") switchBot();
+                    setBotDropdownOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                    currentBot.id === "bellaModa"
+                      ? "text-[#3B82F6] font-medium"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="text-xs">👗</span>
+                  Bella Moda
+                  {currentBot.id === "bellaModa" && (
+                    <span className="ml-auto text-[#3B82F6]">✓</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentBot.id !== "opiPlov") switchBot();
+                    setBotDropdownOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                    currentBot.id === "opiPlov"
+                      ? "text-[#3B82F6] font-medium"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="text-xs">🍽️</span>
+                  Opi Plov
+                  {currentBot.id === "opiPlov" && (
+                    <span className="ml-auto text-[#3B82F6]">✓</span>
+                  )}
+                </button>
                 <div className="border-t border-gray-100 mt-1 pt-1">
-                  <button className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#3B82F6] hover:bg-gray-50">
-                    <span>+</span> Создать нового бота
-                  </button>
+                  <Link
+                    href="/create/language"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#3B82F6] hover:bg-gray-50"
+                  >
+                    <span>+</span> Создать своего бота
+                  </Link>
                 </div>
               </div>
             )}

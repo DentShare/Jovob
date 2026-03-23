@@ -1,5 +1,10 @@
 // This file provides demo data for the dashboard and other components
 // to work without a database connection (for demo/preview purposes)
+//
+// NOTE: The primary demo data source is now DemoContext.tsx which provides
+// rich data for two demo bots (Bella Moda and Opi Plov).
+// This file is kept for backwards compatibility with components that
+// import directly from here.
 
 export const demoMetrics = {
   messagesToday: 127,
@@ -33,12 +38,23 @@ export const demoProducts = [
   { id: '6', name: 'Жакет "Бахор"', price: 259000, category: 'Верхняя одежда', inStock: true, imageUrl: null },
   { id: '7', name: 'Футболка базовая', price: 69000, category: 'Топы', inStock: true, imageUrl: null },
   { id: '8', name: 'Джинсы Mom Fit', price: 199000, category: 'Брюки', inStock: true, imageUrl: null },
+  { id: '9', name: 'Палантин шёлковый', price: 79000, category: 'Аксессуары', inStock: true, imageUrl: null },
+  { id: '10', name: 'Сумка кросс-боди', price: 149000, category: 'Аксессуары', inStock: true, imageUrl: null },
 ]
 
 export const demoUnanswered = [
   { question: 'Можете сшить на заказ?', count: 3 },
   { question: 'Есть ли рассрочка?', count: 2 },
   { question: 'Когда поступление новой коллекции?', count: 1 },
+]
+
+export const demoFaqItems = [
+  { id: '1', question: 'Как оформить заказ?', answer: 'Выберите товар, укажите размер и адрес доставки. Оплата при получении или через Click/Payme.', category: 'Заказы' },
+  { id: '2', question: 'Какие способы оплаты?', answer: 'Наличные при доставке, Click, Payme, Uzum Bank. Перевод на карту Humo/Uzcard.', category: 'Оплата' },
+  { id: '3', question: 'Сколько стоит доставка?', answer: 'По Ташкенту бесплатно от 150 000 сум. В регионы — 25 000 сум (2-3 дня).', category: 'Доставка' },
+  { id: '4', question: 'Можно ли вернуть товар?', answer: 'Возврат и обмен в течение 7 дней при сохранении товарного вида и бирок.', category: 'Возврат' },
+  { id: '5', question: 'Есть ли размерная сетка?', answer: 'Да! Размеры: S (42), M (44), L (46), XL (48). Замеры указаны на каждом товаре.', category: 'Размеры' },
+  { id: '6', question: 'Работаете ли в выходные?', answer: 'Бот отвечает 24/7. Доставка осуществляется ежедневно с 9:00 до 21:00.', category: 'График' },
 ]
 
 export const demoBotInfo = {

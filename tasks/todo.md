@@ -1,4 +1,4 @@
-# Task: BotUz v2 — Full Product Build
+# Task: Jovob — Full Product Build
 
 ## Plan
 - [x] Initialize Next.js 14 project with TypeScript, Tailwind

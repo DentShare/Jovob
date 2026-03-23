@@ -104,7 +104,7 @@ export default function Niches() {
             Для любого бизнеса
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Для кого подходит BotUz?
+            Для кого подходит Jovob?
           </h2>
           <p className="text-gray-500 text-lg max-w-xl mx-auto">
             AI-бот адаптируется под любую нишу. Вот самые популярные

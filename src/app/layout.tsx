@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BotUz v2 — AI-конструктор ботов для бизнеса в Узбекистане",
+  title: "Jovob — AI-конструктор ботов для бизнеса в Узбекистане",
   description:
     "Создайте AI-помощника для вашего бизнеса за 7 минут — без программирования. Telegram, Instagram, WhatsApp на русском и узбекском.",
 };

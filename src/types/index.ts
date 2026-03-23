@@ -1,4 +1,4 @@
-// ─── Shared TypeScript types for BotUz v2 ──────────────────────────────────
+// ─── Shared TypeScript types for Jovob ──────────────────────────────────
 
 import type { Bot, Product, FAQItem, Conversation, Message } from '@prisma/client'
 
