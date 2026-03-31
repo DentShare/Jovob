@@ -107,6 +107,12 @@ export const botRouter = router({
         telegramToken: z.string().optional(),
         capabilities: z.array(z.string()).optional(),
         scenario: z.record(z.string(), z.unknown()).optional(),
+        isActive: z.boolean().optional(),
+        aiModel: z.string().optional(),
+        aiTemperature: z.number().min(0).max(2).optional(),
+        aiMaxTokens: z.number().int().min(100).max(4096).optional(),
+        aiMaxContext: z.number().int().min(1).max(50).optional(),
+        confidenceThreshold: z.number().min(0).max(1).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -184,42 +190,72 @@ export const botRouter = router({
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
 
-      const [messagesToday, ordersTotal, newClientsToday, totalMessages, aiMessages] =
-        await Promise.all([
-          ctx.prisma.message.count({
-            where: {
-              conversation: { botId: input.botId },
-              createdAt: { gte: today },
-            },
-          }),
-          ctx.prisma.order.count({
-            where: { botId: input.botId },
-          }),
-          ctx.prisma.conversation.count({
-            where: { botId: input.botId, createdAt: { gte: today } },
-          }),
-          ctx.prisma.message.count({
-            where: { conversation: { botId: input.botId } },
-          }),
-          ctx.prisma.message.count({
-            where: {
-              conversation: { botId: input.botId },
-              role: 'ASSISTANT',
-              confidence: { gte: 0.6 },
-            },
-          }),
-        ])
+      const [
+        messagesToday, messagesYesterday,
+        ordersTotal, ordersThisWeek, ordersLastWeek,
+        newClientsToday, newClientsYesterday,
+        totalMessages, aiMessages
+      ] = await Promise.all([
+        ctx.prisma.message.count({
+          where: { conversation: { botId: input.botId }, createdAt: { gte: today } },
+        }),
+        ctx.prisma.message.count({
+          where: { conversation: { botId: input.botId }, createdAt: { gte: yesterday, lt: today } },
+        }),
+        ctx.prisma.order.count({ where: { botId: input.botId } }),
+        ctx.prisma.order.count({
+          where: { botId: input.botId, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+        }),
+        ctx.prisma.order.count({
+          where: { botId: input.botId, createdAt: { gte: new Date(Date.now() - 14 * 86400000), lt: new Date(Date.now() - 7 * 86400000) } },
+        }),
+        ctx.prisma.conversation.count({
+          where: { botId: input.botId, createdAt: { gte: today } },
+        }),
+        ctx.prisma.conversation.count({
+          where: { botId: input.botId, createdAt: { gte: yesterday, lt: today } },
+        }),
+        ctx.prisma.message.count({
+          where: { conversation: { botId: input.botId } },
+        }),
+        ctx.prisma.message.count({
+          where: { conversation: { botId: input.botId }, role: 'ASSISTANT', confidence: { gte: 0.6 } },
+        }),
+      ])
+
+      function calcChange(current: number, previous: number): string {
+        if (previous === 0) return current > 0 ? '+100%' : ''
+        const pct = Math.round(((current - previous) / previous) * 100)
+        return pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : '0%'
+      }
 
       return {
         messagesToday,
+        messagesChange: calcChange(messagesToday, messagesYesterday),
         ordersTotal,
+        ordersChange: calcChange(ordersThisWeek, ordersLastWeek),
         newClientsToday,
-        aiAnswerRate:
-          totalMessages > 0
-            ? Math.round((aiMessages / totalMessages) * 100)
-            : 0,
+        clientsChange: calcChange(newClientsToday, newClientsYesterday),
+        aiAnswerRate: totalMessages > 0 ? Math.round((aiMessages / totalMessages) * 100) : 0,
+        aiChange: '',
       }
+    }),
+
+  // ─── Get usage / limits ─────────────────────────────────────────────────────
+  getUsage: protectedProcedure
+    .input(z.object({ botId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({ where: { id: input.botId } })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      const { getUsage } = await import('@/server/services/usage-tracker')
+      return getUsage(input.botId)
     }),
 
   // ─── Launch bot (activate + register webhook) ──────────────────────────────

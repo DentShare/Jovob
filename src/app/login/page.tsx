@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -26,6 +26,49 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const telegramRef = useRef<HTMLDivElement>(null)
+
+  const handleTelegramAuth = useCallback(async (data: Record<string, unknown>) => {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await signIn('telegram', {
+        telegramData: JSON.stringify(data),
+        redirect: false,
+      })
+      if (result?.error) {
+        setError('Ошибка входа через Telegram')
+      } else {
+        router.push('/dashboard')
+        router.refresh()
+      }
+    } catch {
+      setError('Произошла ошибка. Попробуйте снова.')
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+  useEffect(() => {
+    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME
+    if (!botUsername || !telegramRef.current) return
+    // Expose callback globally for Telegram widget
+    ;(window as any).onTelegramAuth = handleTelegramAuth
+
+    const script = document.createElement('script')
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.async = true
+    script.setAttribute('data-telegram-login', botUsername)
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)')
+    script.setAttribute('data-request-access', 'write')
+    script.setAttribute('data-radius', '12')
+
+    telegramRef.current.innerHTML = ''
+    telegramRef.current.appendChild(script)
+
+    return () => { delete (window as any).onTelegramAuth }
+  }, [handleTelegramAuth])
 
   const loginValue = loginMethod === 'phone' ? `+998${phone.replace(/\D/g, '')}` : email
 
@@ -232,18 +275,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Telegram button */}
-            <button
-              type="button"
-              disabled
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-slate-500 font-medium text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-              </svg>
-              Войти через Telegram
-              <span className="text-xs text-slate-400">(скоро)</span>
-            </button>
+            {/* Telegram Login Widget */}
+            <div ref={telegramRef} className="flex justify-center" />
           </form>
         </div>
 

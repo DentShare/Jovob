@@ -40,11 +40,16 @@ export const wizardRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = resolveUserId(ctx.session, input.clientId)
+      const realUserId = ctx.session?.user?.id as string | undefined
 
-      // Read existing session to merge steps
+      // For anonymous users, just acknowledge — data is stored client-side
+      if (!realUserId) {
+        return { step: input.step, totalSteps: input.step }
+      }
+
+      // For authenticated users, persist in DB
       const existing = await ctx.prisma.wizardSession.findUnique({
-        where: { userId },
+        where: { userId: realUserId },
       })
 
       const currentSteps =
@@ -55,9 +60,9 @@ export const wizardRouter = router({
       }
 
       await ctx.prisma.wizardSession.upsert({
-        where: { userId },
+        where: { userId: realUserId },
         create: {
-          userId,
+          userId: realUserId,
           steps: updatedSteps as Prisma.InputJsonValue,
         },
         update: {
@@ -79,11 +84,16 @@ export const wizardRouter = router({
         clientId: z.string().optional(),
       })
     )
-    .query(async ({ ctx, input }) => {
-      const userId = resolveUserId(ctx.session, input.clientId)
+    .query(async ({ ctx }) => {
+      const realUserId = ctx.session?.user?.id as string | undefined
+
+      // For anonymous users, return empty — data is client-side
+      if (!realUserId) {
+        return { steps: {} as Record<string, unknown>, currentStep: 0, isComplete: false }
+      }
 
       const session = await ctx.prisma.wizardSession.findUnique({
-        where: { userId },
+        where: { userId: realUserId },
       })
 
       if (!session) {
@@ -117,27 +127,36 @@ export const wizardRouter = router({
       z.object({
         wizardId: z.string().default('default'),
         clientId: z.string().optional(),
+        // Accept steps data directly from client (localStorage)
+        steps: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = resolveUserId(ctx.session, input.clientId)
+      const realUserId = ctx.session?.user?.id as string | undefined
 
-      const wizardSession = await ctx.prisma.wizardSession.findUnique({
-        where: { userId },
-      })
+      // Try to load from DB for authenticated users, or use client-provided steps
+      let stepsData: Record<string, unknown> = {}
 
-      if (
-        !wizardSession ||
-        !wizardSession.steps ||
-        Object.keys(wizardSession.steps as Record<string, unknown>).length === 0
-      ) {
+      if (realUserId) {
+        const wizardSession = await ctx.prisma.wizardSession.findUnique({
+          where: { userId: realUserId },
+        })
+        if (wizardSession?.steps) {
+          stepsData = wizardSession.steps as Record<string, unknown>
+        }
+      }
+
+      // Client-provided steps override DB (or are the only source for anon users)
+      if (input.steps && Object.keys(input.steps).length > 0) {
+        stepsData = input.steps
+      }
+
+      if (Object.keys(stepsData).length === 0) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'No wizard data found. Please complete the wizard steps first.',
         })
       }
-
-      const stepsData = wizardSession.steps as Record<string, unknown>
 
       // Aggregate all step data into a flat object
       const allData = Object.values(stepsData).reduce<
@@ -163,10 +182,9 @@ export const wizardRouter = router({
         })
       }
 
-      // For bot creation we need a real user ID (not client:xxx)
-      // If authenticated, use session user id; otherwise the userId from resolveUserId
-      const realUserId = ctx.session?.user?.id
-      if (!realUserId) {
+      // For bot creation we need a real user ID
+      const authUserId = realUserId ?? (ctx.session?.user?.id as string | undefined)
+      if (!authUserId) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
           message: 'You must be logged in to create a bot.',
@@ -176,7 +194,7 @@ export const wizardRouter = router({
       // Create the bot with all aggregated data
       const bot = await ctx.prisma.bot.create({
         data: {
-          userId: realUserId,
+          userId: authUserId,
           name,
           description,
           businessType,
@@ -231,10 +249,57 @@ export const wizardRouter = router({
         })
       }
 
-      // Clean up wizard session from DB
-      await ctx.prisma.wizardSession.delete({
-        where: { userId },
-      })
+      // Register Telegram webhook if token provided
+      const telegramToken = allData.telegramToken as string | undefined
+      let telegramBotName: string | undefined
+      if (telegramToken) {
+        try {
+          // Validate token
+          const meRes = await fetch(`https://api.telegram.org/bot${telegramToken}/getMe`)
+          const meData = (await meRes.json()) as { ok: boolean; result?: { username?: string } }
+          if (meData.ok) {
+            telegramBotName = meData.result?.username
+
+            // Register webhook
+            const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/telegram/${bot.id}`
+            await fetch(`https://api.telegram.org/bot${telegramToken}/setWebhook`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: webhookUrl }),
+            })
+
+            // Activate bot
+            await ctx.prisma.bot.update({
+              where: { id: bot.id },
+              data: {
+                isActive: true,
+                ...(telegramBotName && { telegramBotName }),
+              },
+            })
+          }
+        } catch {
+          // Webhook registration failed — bot created but not active
+        }
+      }
+
+      // Create KnowledgeDoc from business description
+      if (allData.description) {
+        await ctx.prisma.knowledgeDoc.create({
+          data: {
+            botId: bot.id,
+            title: 'Описание бизнеса',
+            source: 'wizard',
+            content: allData.description as string,
+          },
+        })
+      }
+
+      // Clean up wizard session from DB (only for authenticated users)
+      if (authUserId) {
+        await ctx.prisma.wizardSession.delete({
+          where: { userId: authUserId },
+        }).catch(() => {})
+      }
 
       // Return the created bot with relations
       const fullBot = await ctx.prisma.bot.findUnique({

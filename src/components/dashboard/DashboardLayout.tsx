@@ -8,10 +8,13 @@ import { useBotContext } from "./BotContext";
 
 const navItems = [
   { href: "/dashboard", icon: "📊", label: "Главная" },
+  { href: "/dashboard/analytics", icon: "📈", label: "Аналитика" },
   { href: "/dashboard/dialogs", icon: "💬", label: "Диалоги" },
   { href: "/dashboard/orders", icon: "🛒", label: "Заказы" },
+  { href: "/dashboard/customers", icon: "👥", label: "Клиенты" },
   { href: "/dashboard/products", icon: "📦", label: "Товары" },
   { href: "/dashboard/knowledge", icon: "🧠", label: "База знаний" },
+  { href: "/dashboard/broadcasts", icon: "📣", label: "Рассылки" },
   { href: "/dashboard/constructor", icon: "🔧", label: "Конструктор" },
   { href: "/dashboard/platforms", icon: "📡", label: "Платформы" },
   { href: "/dashboard/plan", icon: "💳", label: "Тариф" },

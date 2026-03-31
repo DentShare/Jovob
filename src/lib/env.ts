@@ -8,8 +8,15 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_URL: z.string().url().optional(),
   REDIS_URL: z.string().url().optional(),
+  // Meta Platform (Instagram, Messenger, WhatsApp)
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  INSTAGRAM_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  MESSENGER_VERIFY_TOKEN: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
   NEXT_PUBLIC_BOT_USERNAME: z.string().optional(),
+  NEXT_PUBLIC_META_APP_ID: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -195,8 +195,33 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     setCompleteError(null);
 
     try {
+      // Build steps data from current state to pass to backend
+      const stepsForBackend: Record<string, unknown> = {
+        "1": { language: state.language },
+        "2": { botLanguages: state.botLanguages },
+        "3": { businessType: state.businessType },
+        "4": { capabilities: state.capabilities },
+        "5": {
+          name: state.businessInfo.name || state.botName,
+          description: state.businessInfo.description,
+          address: state.businessInfo.address,
+          managerContact: state.businessInfo.managerContact,
+          workingHours: {
+            start: state.businessInfo.workingHoursFrom,
+            end: state.businessInfo.workingHoursTo,
+            days: state.businessInfo.workingDays,
+          },
+          welcomeMessage: state.welcomeMessage,
+        },
+        "6": { products: state.products },
+        "7": { faqItems: state.faqItems },
+        "8": { telegramToken: state.telegramToken },
+        "9": { personality: state.personality },
+      };
+
       const result = await completeMutation.mutateAsync({
         clientId: getClientId(),
+        steps: stepsForBackend,
       });
       // Clear localStorage on success
       if (typeof window !== "undefined") {

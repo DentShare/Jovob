@@ -1,10 +1,12 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -140,8 +142,21 @@ model Bot {
   managerContact   String?
   telegramToken    String?         @unique
   telegramBotName  String?
-  instagramPageId  String?
-  whatsappPhoneId  String?
+  // Instagram (Meta Graph API)
+  instagramPageId      String?
+  instagramAccountId   String?
+  instagramAccessToken String?     @db.Text
+  // Facebook Messenger (same Meta App, uses Facebook Page)
+  messengerPageId      String?
+  messengerPageName    String?
+  // WhatsApp Cloud API
+  whatsappPhoneId      String?
+  whatsappBusinessId   String?
+  whatsappAccessToken  String?     @db.Text
+  whatsappPhoneNumber  String?
+  // Meta OAuth (shared across Instagram/Messenger/WhatsApp)
+  metaUserToken        String?     @db.Text
+  metaTokenExpiresAt   DateTime?
   isActive         Boolean         @default(false)
   scenario         Json?
   capabilities     String[]
@@ -159,6 +174,7 @@ model Bot {
   orders           Order[]
   bookings         Booking[]
   broadcasts       Broadcast[]
+  customers        Customer[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -247,6 +263,7 @@ model Conversation {
   state          Json      @default("{}")
   messages       Message[]
   orders         Order[]
+  operatorMode   Boolean   @default(false)
   isResolved     Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -282,6 +299,9 @@ model Order {
   customerPhone   String
   deliveryAddress String?
   notes           String?
+  paymentStatus   String?      // PENDING | PAID | FAILED
+  paymentMethod   String?      // click | payme
+  paymentId       String?      @unique
   createdAt       DateTime     @default(now())
 
   @@index([botId])
@@ -299,6 +319,28 @@ model Booking {
   notes         String?
   createdAt     DateTime      @default(now())
 
+  @@index([botId])
+}
+
+// ─── CRM ────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id             String   @id @default(cuid())
+  botId          String
+  bot            Bot      @relation(fields: [botId], references: [id])
+  platformChatId String
+  platform       String
+  name           String?
+  phone          String?
+  language       String?
+  tags           String[]
+  totalOrders    Int      @default(0)
+  totalSpent     Decimal  @default(0)
+  firstContact   DateTime @default(now())
+  lastContact    DateTime @default(now())
+  notes          String?  @db.Text
+
+  @@unique([botId, platformChatId, platform])
   @@index([botId])
 }
 
@@ -374,6 +416,7 @@ model Broadcast {
   bot         Bot             @relation(fields: [botId], references: [id])
   message     String          @db.Text
   imageUrl    String?
+  platforms   String[]        @default(["telegram"])
   filters     Json?
   status      BroadcastStatus @default(DRAFT)
   totalSent   Int             @default(0)

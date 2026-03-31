@@ -147,4 +147,113 @@ export const conversationRouter = router({
 
       return unanswered
     }),
+
+  // ─── Get operator queue (operatorMode=true) ─────────────────────────────
+  getOperatorQueue: protectedProcedure
+    .input(z.object({ botId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({ where: { id: input.botId } })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      return ctx.prisma.conversation.findMany({
+        where: { botId: input.botId, operatorMode: true, isResolved: false },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+          _count: { select: { messages: true } },
+        },
+      })
+    }),
+
+  // ─── Toggle operator mode ───────────────────────────────────────────────
+  setOperatorMode: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      botId: z.string(),
+      operatorMode: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({ where: { id: input.botId } })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      return ctx.prisma.conversation.update({
+        where: { id: input.id },
+        data: { operatorMode: input.operatorMode },
+      })
+    }),
+
+  // ─── Send operator message ──────────────────────────────────────────────
+  sendOperatorMessage: protectedProcedure
+    .input(z.object({
+      conversationId: z.string(),
+      botId: z.string(),
+      content: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({ where: { id: input.botId } })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      const conversation = await ctx.prisma.conversation.findUnique({
+        where: { id: input.conversationId },
+      })
+      if (!conversation || conversation.botId !== input.botId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Conversation not found' })
+      }
+
+      // Save operator message to DB
+      const message = await ctx.prisma.message.create({
+        data: {
+          conversationId: input.conversationId,
+          role: 'ASSISTANT',
+          content: input.content,
+          platform: conversation.platform,
+          handedOff: true,
+        },
+      })
+
+      // Send via Telegram
+      if (bot.telegramToken && conversation.platform === 'telegram') {
+        await fetch(`https://api.telegram.org/bot${bot.telegramToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: conversation.platformChatId,
+            text: input.content,
+          }),
+        }).catch(() => {})
+      }
+
+      // Update conversation timestamp
+      await ctx.prisma.conversation.update({
+        where: { id: input.conversationId },
+        data: { updatedAt: new Date() },
+      })
+
+      return message
+    }),
+
+  // ─── Resolve conversation ───────────────────────────────────────────────
+  resolve: protectedProcedure
+    .input(z.object({ id: z.string(), botId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id as string
+      const bot = await ctx.prisma.bot.findUnique({ where: { id: input.botId } })
+      if (!bot || bot.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' })
+      }
+
+      return ctx.prisma.conversation.update({
+        where: { id: input.id },
+        data: { isResolved: true, operatorMode: false },
+      })
+    }),
 })

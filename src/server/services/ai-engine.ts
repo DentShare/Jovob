@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { buildSystemPrompt } from './prompt-builder'
 import { sanitizeForAI } from '@/lib/sanitize'
 import { logger } from '@/lib/logger'
+import { detectScript, transliterate } from '@/lib/transliterate'
 import type {
   BotConfig,
   ProcessedMessage,
@@ -17,9 +18,11 @@ import type { Bot, Product, FAQItem } from '@prisma/client'
 // ─── OpenAI Client ──────────────────────────────────────────────────────────
 
 function getOpenAI() {
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
-  })
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured. AI features are unavailable.')
+  }
+  return new OpenAI({ apiKey })
 }
 
 // Defaults (overridden per-bot from DB)
@@ -51,6 +54,15 @@ export async function processMessage(
   customerLanguage?: string | null
 ): Promise<ProcessedMessage> {
   try {
+    // 0. Check usage limits
+    const { checkLimit } = await import('./usage-tracker')
+    const withinLimit = await checkLimit(botId, 'aiMessages')
+    if (!withinLimit) {
+      return createErrorResponse(
+        'Лимит AI-ответов на этот месяц исчерпан. Владелец бота может повысить тариф для продолжения.'
+      )
+    }
+
     // 1. Load bot with relations
     const bot = await loadBotConfig(botId)
     if (!bot) {
@@ -103,8 +115,20 @@ export async function processMessage(
       responseText.includes('Сейчас подключу менеджера')
     const language = detectLanguage(userMessage)
 
+    // 9b. Auto-transliterate Uzbek response to match user's script
+    let finalResponse = responseText
+    if (language === 'uz') {
+      const userScript = detectScript(userMessage)
+      const responseScript = detectScript(responseText)
+      if (userScript === 'latin' && responseScript === 'cyrillic') {
+        finalResponse = transliterate(responseText, 'latin')
+      } else if (userScript === 'cyrillic' && responseScript === 'latin') {
+        finalResponse = transliterate(responseText, 'cyrillic')
+      }
+    }
+
     // 10. Save messages to DB
-    await saveMessages(conversation.id, platform, userMessage, responseText, confidence, suggestHandoff)
+    await saveMessages(conversation.id, platform, userMessage, finalResponse, confidence, suggestHandoff)
 
     // 11. Log to AILog (fire-and-forget)
     logAIRequest(botId, conversation.id, userMessage, systemPrompt, responseText, bot.aiModel, tokensUsed, confidence, intent, latencyMs)
@@ -118,7 +142,7 @@ export async function processMessage(
     }
 
     return {
-      response: responseText,
+      response: finalResponse,
       confidence,
       intent,
       extractedData,

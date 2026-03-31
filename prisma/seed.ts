@@ -1,13 +1,33 @@
 import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Create demo user
+  // Clean existing data
+  await prisma.message.deleteMany()
+  await prisma.order.deleteMany()
+  await prisma.booking.deleteMany()
+  await prisma.conversation.deleteMany()
+  await prisma.product.deleteMany()
+  await prisma.service.deleteMany()
+  await prisma.fAQItem.deleteMany()
+  await prisma.knowledgeChunk.deleteMany()
+  await prisma.knowledgeDoc.deleteMany()
+  await prisma.bot.deleteMany()
+  await prisma.wizardSession.deleteMany()
+  await prisma.authSession.deleteMany()
+  await prisma.account.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Create demo user with login credentials
+  const hashedPassword = await hash('demo123456', 12)
   const user = await prisma.user.create({
     data: {
       name: 'Алишер Каримов',
       email: 'alisher@demo.uz',
       phone: '+998901234567',
+      telegramId: BigInt(123456789),
+      hashedPassword,
       language: 'ru',
       plan: 'STARTER',
     },
@@ -27,6 +47,7 @@ async function main() {
       address: 'Ташкент, Юнусабад, ул. Амира Темура 15',
       managerContact: '+998901234567',
       isActive: true,
+      telegramToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
       capabilities: ['ai_answers', 'catalog', 'orders', 'handoff'],
     },
   })
@@ -94,6 +115,19 @@ async function main() {
     data: [
       { conversationId: conv2.id, role: 'USER', content: 'Можете сшить на заказ?', platform: 'telegram' },
       { conversationId: conv2.id, role: 'ASSISTANT', content: 'К сожалению, я не могу ответить на этот вопрос. Давайте я свяжу вас с менеджером — +998901234567. Или напишите @alisher_manager в Telegram.', platform: 'telegram', confidence: 0.3, handedOff: true },
+    ],
+  })
+
+  // Third conversation
+  const conv3 = await prisma.conversation.create({
+    data: { botId: bellaModa.id, platform: 'telegram', platformChatId: '555666777', customerName: 'Мадина', language: 'uz' },
+  })
+  await prisma.message.createMany({
+    data: [
+      { conversationId: conv3.id, role: 'USER', content: 'Salom! Narxlar qancha?', platform: 'telegram' },
+      { conversationId: conv3.id, role: 'ASSISTANT', content: "Salom! 👋 Bizda narxlar 69 000 so'mdan 349 000 so'mgacha. Qaysi tovar qiziqtiradi?", platform: 'telegram', confidence: 0.88 },
+      { conversationId: conv3.id, role: 'USER', content: 'Ko\'ylaklar bormi?', platform: 'telegram' },
+      { conversationId: conv3.id, role: 'ASSISTANT', content: "Ha, bizda ko'ylaklar bor:\n\n1. \"Güzel\" yozgi ko'ylak — 189 000 so'm\n2. Ko'ylak-ko'ylak — 169 000 so'm\n\nQaysi biri yoqdi?", platform: 'telegram', confidence: 0.85 },
     ],
   })
 
@@ -168,7 +202,8 @@ async function main() {
   console.log(`   User: ${user.name} (${user.email})`)
   console.log(`   Bot 1: ${bellaModa.name} — ${products.length} products, ${faqs.length} FAQs`)
   console.log(`   Bot 2: ${opiPlov.name} — ${dishes.length} products`)
-  console.log(`   Conversations: 2, Orders: 2`)
+  console.log(`   Conversations: 3, Orders: 2`)
+  console.log(`   Login: alisher@demo.uz / demo123456`)
 }
 
 main()

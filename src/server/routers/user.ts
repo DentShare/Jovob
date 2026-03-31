@@ -111,4 +111,33 @@ export const userRouter = router({
 
       return { success: true }
     }),
+
+  // ─── Create subscription payment ────────────────────────────────────────
+  createSubscription: protectedProcedure
+    .input(z.object({ plan: z.enum(['STARTER', 'BUSINESS']) }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const { createSubscriptionPayment } = await import('@/server/services/subscription')
+      return createSubscriptionPayment(userId, input.plan)
+    }),
+
+  // ─── Get subscription status ────────────────────────────────────────────
+  getSubscription: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user?.id
+    if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true, planExpiresAt: true },
+    })
+
+    const subscription = await ctx.prisma.subscription.findFirst({
+      where: { userId, isActive: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return { plan: user?.plan, planExpiresAt: user?.planExpiresAt, subscription }
+  }),
 })

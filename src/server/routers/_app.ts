@@ -10,6 +10,9 @@ import { wizardRouter } from './wizard'
 import { userRouter } from './user'
 import { notificationRouter } from './notification'
 import { broadcastRouter } from './broadcast'
+import { customerRouter } from './customer'
+import { analyticsRouter } from './analytics'
+import { platformRouter } from './platform'
 
 export const appRouter = router({
   bot: botRouter,
@@ -23,6 +26,9 @@ export const appRouter = router({
   user: userRouter,
   notification: notificationRouter,
   broadcast: broadcastRouter,
+  customer: customerRouter,
+  analytics: analyticsRouter,
+  platform: platformRouter,
 })
 
 export type AppRouter = typeof appRouter

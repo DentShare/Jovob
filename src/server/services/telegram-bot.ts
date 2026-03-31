@@ -115,6 +115,36 @@ export function setupHandlers(bot: Bot, botId: string): void {
       const customerName = buildCustomerName(ctx)
       const customerLanguage = ctx.from?.language_code ?? null
 
+      // Upsert customer record (fire-and-forget)
+      prisma.customer.upsert({
+        where: { botId_platformChatId_platform: { botId, platformChatId: chatId, platform: 'telegram' } },
+        create: { botId, platformChatId: chatId, platform: 'telegram', name: customerName, language: customerLanguage },
+        update: { lastContact: new Date(), ...(customerName && { name: customerName }), ...(customerLanguage && { language: customerLanguage }) },
+      }).catch(() => {})
+
+      // Check if conversation is in operator mode — skip AI
+      const existingConv = await prisma.conversation.findFirst({
+        where: { botId, platformChatId: chatId, platform: 'telegram', isResolved: false },
+        orderBy: { updatedAt: 'desc' },
+      })
+
+      if (existingConv?.operatorMode) {
+        // Just save the message, operator will see it in dashboard
+        await prisma.message.create({
+          data: {
+            conversationId: existingConv.id,
+            role: 'USER',
+            content: ctx.message.text,
+            platform: 'telegram',
+          },
+        })
+        await prisma.conversation.update({
+          where: { id: existingConv.id },
+          data: { updatedAt: new Date() },
+        })
+        return // Don't call AI
+      }
+
       // Show "typing" indicator
       await ctx.replyWithChatAction('typing')
 
@@ -134,9 +164,20 @@ export function setupHandlers(bot: Bot, botId: string): void {
         await ctx.reply(visibleResponse, { parse_mode: 'HTML' })
       }
 
-      // If handoff is suggested, notify the manager
+      // If handoff is suggested, notify the manager + set operator mode
       if (result.suggestHandoff) {
         await notifyManager(botId, chatId, customerName, ctx.message.text)
+        // Enable operator mode on this conversation
+        const conv = await prisma.conversation.findFirst({
+          where: { botId, platformChatId: chatId, platform: 'telegram', isResolved: false },
+        })
+        if (conv) {
+          await prisma.conversation.update({ where: { id: conv.id }, data: { operatorMode: true } })
+        }
+        // Also send structured notification
+        import('./owner-notifications').then(({ notifyHandoff }) => {
+          notifyHandoff(botId, customerName, ctx.message.text).catch(() => {})
+        })
       }
 
       // If order data was extracted, create order
@@ -179,6 +220,19 @@ export function setupHandlers(bot: Bot, botId: string): void {
       console.error(`[Telegram Bot ${botId}] Photo handling error:`, error)
       await ctx.reply('Фото получено. Чем ещё могу помочь?')
     }
+  })
+
+  // ─── Voice Messages ──────────────────────────────────────────────────
+  bot.on('message:voice', async (ctx) => {
+    await ctx.reply(
+      'Извините, я пока не понимаю голосовые сообщения. Пожалуйста, напишите текстом, и я с удовольствием помогу!'
+    )
+  })
+
+  bot.on('message:video_note', async (ctx) => {
+    await ctx.reply(
+      'Спасибо за видеосообщение! К сожалению, я пока могу обрабатывать только текст. Напишите, чем могу помочь?'
+    )
   })
 
   // ─── Contact Sharing ──────────────────────────────────────────────────

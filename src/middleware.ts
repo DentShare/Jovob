@@ -3,9 +3,19 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || ''
+  const { pathname, search } = request.nextUrl
+
+  // Redirect non-www to www (jovob.uz → www.jovob.uz)
+  if (host === 'jovob.uz') {
+    return NextResponse.redirect(
+      `https://www.jovob.uz${pathname}${search}`,
+      308
+    )
+  }
+
   const token = await getToken({ req: request })
   const isAuth = !!token
-  const { pathname } = request.nextUrl
   const isAuthPage = pathname === '/login'
   const isProtected = pathname.startsWith('/create') || pathname.startsWith('/dashboard')
 
@@ -25,5 +35,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/login', '/create/:path*', '/dashboard/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

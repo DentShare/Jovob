@@ -67,11 +67,18 @@ export const broadcastRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Broadcast already sent' })
       }
 
-      // Mark as sending — actual send will be handled by a worker/job
-      return ctx.prisma.broadcast.update({
+      // Mark as sending and start sending in background
+      const updated = await ctx.prisma.broadcast.update({
         where: { id: input.id },
         data: { status: 'SENDING', sentAt: new Date() },
       })
+
+      // Fire-and-forget: send broadcast asynchronously
+      import('@/server/services/broadcast-sender').then(({ sendBroadcast }) => {
+        sendBroadcast(input.id).catch(console.error)
+      })
+
+      return updated
     }),
 
   stats: protectedProcedure

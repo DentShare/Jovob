@@ -88,6 +88,7 @@ export default function BotSettings() {
       description: config.description,
       personality: config.personality,
       welcomeMessage: config.welcomeMessage,
+      isActive: config.isActive,
       workingHours: {
         start: config.workingHoursStart,
         end: config.workingHoursEnd,

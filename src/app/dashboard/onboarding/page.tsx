@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
@@ -12,7 +12,7 @@ interface ChecklistItem {
   href?: string;
 }
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams();
   const botId = searchParams.get("botId");
 
@@ -149,5 +149,13 @@ export default function OnboardingPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-400">Загрузка...</div>}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

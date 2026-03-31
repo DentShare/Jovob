@@ -11,10 +11,33 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Jovob — AI-конструктор ботов для бизнеса в Узбекистане",
+  title: {
+    default: "Jovob — AI-конструктор ботов для бизнеса в Узбекистане",
+    template: "%s | Jovob",
+  },
   description:
     "Создайте AI-помощника для вашего бизнеса за 7 минут — без программирования. Telegram, Instagram, WhatsApp на русском и узбекском.",
+  keywords: [
+    "AI бот", "чат-бот", "Telegram бот", "Узбекистан", "конструктор ботов",
+    "бот для бизнеса", "автоматизация", "Jovob", "chatbot", "no-code",
+  ],
+  authors: [{ name: "Jovob", url: "https://jovob.uz" }],
+  creator: "Jovob",
   manifest: "/manifest.json",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://jovob.uz"),
+  openGraph: {
+    type: "website",
+    locale: "ru_RU",
+    alternateLocale: "uz_UZ",
+    siteName: "Jovob",
+    title: "Jovob — AI-конструктор ботов для бизнеса",
+    description: "Создайте AI-помощника для бизнеса за 7 минут. Telegram, Instagram, WhatsApp.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jovob — AI-конструктор ботов для бизнеса",
+    description: "Создайте AI-помощника за 7 минут без программирования.",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -22,6 +45,9 @@ export const metadata: Metadata = {
   },
   icons: {
     apple: "/icons/icon.svg",
+  },
+  other: {
+    "telegram:channel": "@jovob_uz",
   },
 };
 

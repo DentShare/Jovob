@@ -92,15 +92,21 @@ export default function MetricsCards() {
   const m = !isDemo && metricsQuery.data
     ? {
         messagesToday: metricsQuery.data.messagesToday,
-        messagesChange: "",
+        messagesChange: metricsQuery.data.messagesChange ?? "",
         ordersTotal: metricsQuery.data.ordersTotal,
-        ordersChange: "",
+        ordersChange: metricsQuery.data.ordersChange ?? "",
         newClients: metricsQuery.data.newClientsToday,
-        clientsChange: "",
+        clientsChange: metricsQuery.data.clientsChange ?? "",
         aiAnswerRate: metricsQuery.data.aiAnswerRate,
-        aiChange: "",
+        aiChange: metricsQuery.data.aiChange ?? "",
       }
     : demoBot.metrics;
+
+  function getChangeType(change: string): "up" | "down" | "neutral" {
+    if (change.startsWith("+")) return "up";
+    if (change.startsWith("-")) return "down";
+    return "neutral";
+  }
 
   const metrics: MetricCard[] = [
     {
@@ -112,7 +118,7 @@ export default function MetricsCards() {
       value: m.messagesToday,
       label: "Сообщений сегодня",
       change: m.messagesChange,
-      changeType: "up",
+      changeType: getChangeType(m.messagesChange),
       color: "text-[#3B82F6]",
       bgColor: "bg-[#3B82F6]/10",
     },
@@ -125,7 +131,7 @@ export default function MetricsCards() {
       value: m.ordersTotal,
       label: "Заказов всего",
       change: m.ordersChange,
-      changeType: "up",
+      changeType: getChangeType(m.ordersChange),
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
@@ -138,7 +144,7 @@ export default function MetricsCards() {
       value: m.newClients,
       label: "Новых клиентов",
       change: m.clientsChange,
-      changeType: "up",
+      changeType: getChangeType(m.clientsChange),
       color: "text-[#8B5CF6]",
       bgColor: "bg-[#8B5CF6]/10",
     },
@@ -152,7 +158,7 @@ export default function MetricsCards() {
       suffix: "%",
       label: "AI ответил",
       change: m.aiChange,
-      changeType: "up",
+      changeType: getChangeType(m.aiChange),
       color: "text-amber-600",
       bgColor: "bg-amber-100",
     },
