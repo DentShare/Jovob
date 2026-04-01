@@ -191,6 +191,18 @@ export const wizardRouter = router({
         })
       }
 
+      // Verify user exists in DB (JWT may contain stale ID)
+      const userExists = await ctx.prisma.user.findUnique({
+        where: { id: authUserId },
+        select: { id: true },
+      })
+      if (!userExists) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'User account not found. Please log out and log in again.',
+        })
+      }
+
       // Create the bot with all aggregated data
       const bot = await ctx.prisma.bot.create({
         data: {

@@ -149,7 +149,19 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (session.user) (session.user as any).id = token.id as string
+      if (session.user) {
+        const userId = token.id as string
+        // Verify user still exists in DB (handles stale JWTs after DB reset)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, plan: true },
+        })
+        if (!dbUser) {
+          // User no longer exists — return empty session to force re-login
+          return { ...session, user: undefined } as any
+        }
+        ;(session.user as any).id = userId
+      }
       return session
     },
   },
