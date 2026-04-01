@@ -296,7 +296,7 @@ model Order {
   currency        String       @default("UZS")
   status          OrderStatus  @default(NEW)
   customerName    String?
-  customerPhone   String
+  customerPhone   String?
   deliveryAddress String?
   notes           String?
   paymentStatus   String?      // PENDING | PAID | FAILED

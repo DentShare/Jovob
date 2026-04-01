@@ -453,22 +453,18 @@ async function handleOrderExtraction(
       0
     )
 
-    // Note: We only create the order if we have a phone number
-    // Otherwise, the AI will ask for it in the conversation
-    if (conversation.customerPhone) {
-      await prisma.order.create({
-        data: {
-          botId,
-          conversationId: conversation.id,
-          items: extractedData.orderItems as unknown as Prisma.InputJsonValue,
-          total,
-          customerName: conversation.customerName ?? undefined,
-          customerPhone: conversation.customerPhone,
-          deliveryAddress: extractedData.deliveryAddress ?? undefined,
-          notes: extractedData.notes ?? undefined,
-        },
-      })
-    }
+    await prisma.order.create({
+      data: {
+        botId,
+        conversationId: conversation.id,
+        items: extractedData.orderItems as unknown as Prisma.InputJsonValue,
+        total,
+        customerName: conversation.customerName ?? undefined,
+        customerPhone: conversation.customerPhone ?? undefined,
+        deliveryAddress: extractedData.deliveryAddress ?? undefined,
+        notes: extractedData.notes ?? undefined,
+      },
+    })
   } catch (error) {
     console.error(`[Telegram Bot ${botId}] Order extraction error:`, error)
   }

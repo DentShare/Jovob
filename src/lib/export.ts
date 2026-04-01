@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx'
 interface OrderExport {
   id: string
   customerName: string | null
-  customerPhone: string
+  customerPhone: string | null
   total: number
   currency: string
   status: string
@@ -39,7 +39,7 @@ export function exportOrdersToExcel(orders: OrderExport[]): Buffer {
   const data = orders.map((o) => ({
     'ID Заказа': o.id,
     'Клиент': o.customerName ?? '',
-    'Телефон': o.customerPhone,
+    'Телефон': o.customerPhone ?? '',
     'Сумма': o.total,
     'Валюта': o.currency,
     'Статус': o.status,

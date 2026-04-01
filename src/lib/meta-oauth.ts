@@ -163,7 +163,11 @@ export async function verifyWebhookSignature(
   signature: string | null
 ): Promise<boolean> {
   const appSecret = process.env.META_APP_SECRET
-  if (!appSecret || !signature) return false
+  if (!appSecret) {
+    console.warn('[Meta OAuth] META_APP_SECRET not set — skipping signature verification')
+    return true
+  }
+  if (!signature) return false
 
   try {
     const encoder = new TextEncoder()

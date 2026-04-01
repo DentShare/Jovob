@@ -412,7 +412,7 @@ function estimateConfidence(
     confidence += 0.1
   }
 
-  const hasFAQMatch = bot.faqItems.some(
+  const hasFAQMatch = (bot.faqItems ?? []).some(
     (faq) =>
       userMessage.toLowerCase().includes(faq.question.toLowerCase().slice(0, 20)) ||
       (faq.questionUz &&

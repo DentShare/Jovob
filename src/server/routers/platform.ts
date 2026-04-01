@@ -215,10 +215,19 @@ export const platformRouter = router({
         case 'instagram':
           clearData.instagramPageId = null
           clearData.instagramAccountId = null
+          clearData.instagramAccessToken = null
+          // If Messenger also uses this token and is still connected, keep it
+          if (bot.messengerPageId) {
+            delete clearData.instagramAccessToken
+          }
           break
         case 'messenger':
           clearData.messengerPageId = null
           clearData.messengerPageName = null
+          // Clear shared token only if Instagram is also disconnected
+          if (!bot.instagramPageId) {
+            clearData.instagramAccessToken = null
+          }
           break
         case 'whatsapp':
           clearData.whatsappBusinessId = null
