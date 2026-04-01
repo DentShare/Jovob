@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 const languages = ["RU", "UZ", "EN"] as const;
 type Lang = (typeof languages)[number];
@@ -15,6 +16,8 @@ const content: Record<
     cta: string;
     demo: string;
     demoNav: string;
+    login: string;
+    cabinet: string;
     counter: string;
     badges: string[];
   }
@@ -26,6 +29,8 @@ const content: Record<
     cta: "Создать бота бесплатно",
     demo: "Посмотреть демо",
     demoNav: "Демо",
+    login: "Войти",
+    cabinet: "Личный кабинет",
     counter: "Уже создано 1,247 ботов",
     badges: ["Бесплатно", "Без программирования", "Настройка за 7 минут"],
   },
@@ -36,6 +41,8 @@ const content: Record<
     cta: "Botni bepul yaratish",
     demo: "Demoni ko'rish",
     demoNav: "Demo",
+    login: "Kirish",
+    cabinet: "Shaxsiy kabinet",
     counter: "Allaqachon 1,247 ta bot yaratildi",
     badges: ["Bepul", "Dasturlashsiz", "7 daqiqada sozlash"],
   },
@@ -46,6 +53,8 @@ const content: Record<
     cta: "Create a bot for free",
     demo: "View demo",
     demoNav: "Demo",
+    login: "Log in",
+    cabinet: "Dashboard",
     counter: "Already 1,247 bots created",
     badges: ["Free", "No coding", "Setup in 7 minutes"],
   },
@@ -61,6 +70,8 @@ const phoneMessages = [
 
 export default function Hero() {
   const [lang, setLang] = useState<Lang>("RU");
+  const { data: session } = useSession();
+  const isAuth = !!session?.user;
   const t = content[lang];
 
   return (
@@ -141,7 +152,7 @@ export default function Hero() {
           </span>
         </motion.div>
 
-        {/* Demo Link + Language Switcher */}
+        {/* Nav Links + Language Switcher */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -154,21 +165,41 @@ export default function Hero() {
           >
             {t.demoNav}
           </Link>
-        <div className="flex gap-1 bg-white/10 backdrop-blur-md rounded-full p-1 border border-white/10"
-        >
-          {languages.map((l) => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 cursor-pointer ${
-                lang === l
-                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
-                  : "text-gray-300 hover:text-white hover:bg-white/10"
-              }`}
+          {isAuth ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-200"
             >
-              {l}
-            </button>
-          ))}
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+              </svg>
+              {t.cabinet}
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+              {t.login}
+            </Link>
+          )}
+          <div className="flex gap-1 bg-white/10 backdrop-blur-md rounded-full p-1 border border-white/10">
+            {languages.map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 cursor-pointer ${
+                  lang === l
+                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
+                    : "text-gray-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
           </div>
         </motion.div>
       </nav>
