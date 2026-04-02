@@ -47,6 +47,16 @@ export const wizardRouter = router({
         return { step: input.step, totalSteps: input.step }
       }
 
+      // Verify user exists (JWT may reference deleted user)
+      const userExists = await ctx.prisma.user.findUnique({
+        where: { id: realUserId },
+        select: { id: true },
+      })
+      if (!userExists) {
+        // Treat as anonymous — save client-side only
+        return { step: input.step, totalSteps: input.step }
+      }
+
       // For authenticated users, persist in DB
       const existing = await ctx.prisma.wizardSession.findUnique({
         where: { userId: realUserId },
