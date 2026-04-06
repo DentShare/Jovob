@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWizard } from "./WizardContext";
 import Step1Language from "./steps/Step1Language";
@@ -54,6 +54,7 @@ export default function WizardLayout() {
   const { state, goBack, direction } = useWizard();
   const { currentStep, language } = state;
   const labels = stepLabels[language] || stepLabels.ru;
+  const isFirstRender = useRef(true);
 
   const StepComponent = steps[currentStep] || Step1Language;
 
@@ -102,12 +103,12 @@ export default function WizardLayout() {
       {/* Step content */}
       <main className="flex-1 flex items-start justify-center overflow-hidden">
         <div className="w-full max-w-3xl px-4 py-8">
-          <AnimatePresence mode="wait" custom={direction}>
+          <AnimatePresence mode="wait" custom={direction} onExitComplete={() => { isFirstRender.current = false; }}>
             <motion.div
               key={currentStep}
               custom={direction}
               variants={slideVariants}
-              initial="enter"
+              initial={isFirstRender.current ? "center" : "enter"}
               animate="center"
               exit="exit"
               transition={{ duration: 0.3, ease: "easeInOut" }}
