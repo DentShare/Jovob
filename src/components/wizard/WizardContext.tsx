@@ -171,6 +171,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       currentStep: Math.min(prev.currentStep + 1, 10),
     }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const goBack = useCallback(() => {
@@ -179,6 +180,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       currentStep: Math.max(prev.currentStep - 1, 1),
     }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const goToStep = useCallback((step: number) => {
