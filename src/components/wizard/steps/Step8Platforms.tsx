@@ -7,7 +7,7 @@ import { useWizard } from "../WizardContext";
 const t = {
   ru: {
     title: "Подключите платформы",
-    subtitle: "Telegram обязателен. Instagram, Messenger и WhatsApp можно подключить сейчас или позже из дашборда.",
+    subtitle: "Подключите Telegram сейчас или позже из дашборда. Instagram, Messenger и WhatsApp тоже можно добавить позже.",
     tgLabel: "Telegram",
     tgPlaceholder: "Вставьте токен бота от @BotFather",
     tgHint: "Откройте @BotFather в Telegram → /newbot → скопируйте токен",
@@ -21,12 +21,12 @@ const t = {
     msgDesc: "Facebook Messenger для вашей страницы",
     connectFromDashboard: "Подключить из дашборда после создания бота",
     continue: "Продолжить",
-    required: "Обязательно",
+    required: "Рекомендуется",
     available: "Доступно",
   },
   uz: {
     title: "Platformalarni ulang",
-    subtitle: "Telegram majburiy. Instagram, Messenger va WhatsApp ni hozir yoki keyinroq dashboarddan ulash mumkin.",
+    subtitle: "Telegramni hozir yoki keyinroq dashboarddan ulang. Instagram, Messenger va WhatsApp ham keyinroq qo'shish mumkin.",
     tgLabel: "Telegram",
     tgPlaceholder: "@BotFather dan bot tokenini kiriting",
     tgHint: "Telegramda @BotFather ni oching → /newbot → tokenni nusxalang",
@@ -40,12 +40,12 @@ const t = {
     msgDesc: "Facebook sahifangiz uchun Messenger",
     connectFromDashboard: "Bot yaratilgandan keyin dashboarddan ulash",
     continue: "Davom etish",
-    required: "Majburiy",
+    required: "Tavsiya etiladi",
     available: "Mavjud",
   },
   en: {
     title: "Connect platforms",
-    subtitle: "Telegram is required. Instagram, Messenger and WhatsApp can be connected now or later from the dashboard.",
+    subtitle: "Connect Telegram now or later from the dashboard. Instagram, Messenger and WhatsApp can also be added later.",
     tgLabel: "Telegram",
     tgPlaceholder: "Paste your bot token from @BotFather",
     tgHint: "Open @BotFather in Telegram → /newbot → copy the token",
@@ -59,7 +59,7 @@ const t = {
     msgDesc: "Facebook Messenger for your page",
     connectFromDashboard: "Connect from dashboard after creating bot",
     continue: "Continue",
-    required: "Required",
+    required: "Recommended",
     available: "Available",
   },
 };
@@ -128,7 +128,7 @@ export default function Step8Platforms() {
     }
   };
 
-  const canContinue = tokenStatus === "valid";
+  const canContinue = tokenStatus === "valid" || tokenStatus === "idle";
 
   return (
     <div>
