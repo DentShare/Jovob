@@ -179,16 +179,16 @@ export const wizardRouter = router({
       }, {})
 
       // Validate required fields for bot creation
-      const name = allData.name as string | undefined
-      const description = allData.description as string | undefined
+      const name = (allData.name as string | undefined) || (allData.botName as string | undefined)
+      const description = (allData.description as string | undefined) || ''
       const businessType = allData.businessType as string | undefined
-      const welcomeMessage = allData.welcomeMessage as string | undefined
+      const welcomeMessage = (allData.welcomeMessage as string | undefined) || `Добро пожаловать! Чем могу помочь?`
 
-      if (!name || !description || !businessType || !welcomeMessage) {
+      if (!name || !businessType) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message:
-            'Missing required fields: name, description, businessType, and welcomeMessage are required.',
+            'Missing required fields: name and businessType are required.',
         })
       }
 
