@@ -130,10 +130,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (initialized.current) {
+    if (isInitialized) {
       saveState(state);
     }
-  }, [state]);
+  }, [state, isInitialized]);
 
   // Debounced save to backend
   const debounceSaveToBackend = useCallback(
