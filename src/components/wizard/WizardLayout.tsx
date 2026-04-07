@@ -51,12 +51,21 @@ const slideVariants = {
 };
 
 export default function WizardLayout() {
-  const { state, goBack, direction } = useWizard();
+  const { state, goBack, direction, isInitialized } = useWizard();
   const { currentStep, language } = state;
   const labels = stepLabels[language] || stepLabels.ru;
   const isFirstRender = useRef(true);
 
   const StepComponent = steps[currentStep] || Step1Language;
+
+  // Don't render until localStorage state is loaded to avoid hydration mismatch
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">

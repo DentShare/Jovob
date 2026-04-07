@@ -68,6 +68,7 @@ interface WizardContextValue {
   completeWizard: () => Promise<{ id: string; name: string } | null>;
   isCompleting: boolean;
   completeError: string | null;
+  isInitialized: boolean;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
@@ -112,6 +113,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [direction, setDirection] = useState(1);
   const [isCompleting, setIsCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const initialized = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -123,6 +125,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (!initialized.current) {
       setState(loadState());
       initialized.current = true;
+      setIsInitialized(true);
     }
   }, []);
 
@@ -253,6 +256,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         completeWizard,
         isCompleting,
         completeError,
+        isInitialized,
       }}
     >
       {children}
